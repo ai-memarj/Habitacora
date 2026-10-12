@@ -33,7 +33,7 @@ export function Navbar({ date, onDateChange, streak, streakLoading }: NavbarProp
         </div>
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight">Bitácora</p>
-          <p className="hidden text-xs capitalize text-muted-foreground sm:block">
+          <p className="hidden text-base font-medium capitalize text-foreground sm:block sm:text-lg">
             {formatLabel(date)}
           </p>
         </div>

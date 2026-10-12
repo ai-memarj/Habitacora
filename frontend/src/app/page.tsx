@@ -7,7 +7,6 @@ import { Navbar } from "@/components/layout/navbar";
 import { TaskCard } from "@/components/dashboard/task-card";
 import { SleepCard } from "@/components/dashboard/sleep-card";
 import { ReflectionCard } from "@/components/dashboard/reflection-card";
-import { NotesCard } from "@/components/dashboard/notes-card";
 import { CategoryManagerDialog } from "@/components/dashboard/category-manager-dialog";
 
 import { useDaySummary } from "@/hooks/use-day-summary";
@@ -79,12 +78,8 @@ export default function Home() {
           />
         </motion.div>
 
-        <motion.div variants={item}>
+        <motion.div variants={item} className="md:col-span-2">
           <SleepCard date={date} sleep={summary?.sleep} onChanged={refreshAll} />
-        </motion.div>
-
-        <motion.div variants={item}>
-          <NotesCard date={date} entry={summary?.entry} onChanged={refreshAll} />
         </motion.div>
       </motion.main>
 

@@ -84,7 +84,10 @@ detalle del stack y estructura de carpetas.
 - **SleepLog**: un registro por noche — hora de dormir, hora de
   despertar, y porcentaje de sueño ligero/profundo/REM.
 - **DailyEntry**: un registro por día — frase motivacional, estado de
-  ánimo (escala 1-5) y notas libres.
+  ánimo (escala 1-5) y notas libres. [actualizado] El frontend ahora
+  solo muestra/edita la frase; ánimo y notas se quitaron de la UI a
+  petición del usuario, pero siguen existiendo en el modelo y la API
+  (ver `CLAUDE.md`).
 
 ## API
 

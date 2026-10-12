@@ -69,19 +69,31 @@ andamiaje: Next.js + TypeScript + Tailwind v4 (config CSS-first en
 Motion, todo en uso.
 
 **Páginas/componentes:**
-- `src/app/page.tsx` — dashboard real de un día: Navbar + Reflexión
-  (frase/ánimo) + Tareas + Sueño + Notas, animado con Framer Motion
-  (stagger de entrada) y conectado a la API vía los hooks de
-  `src/hooks/`.
+- `src/app/page.tsx` — dashboard real de un día: Navbar + Frase del día
+  + Tareas + Sueño, animado con Framer Motion (stagger de entrada) y
+  conectado a la API vía los hooks de `src/hooks/`. [actualizado] Se
+  quitaron de la UI las notas libres y el selector de ánimo (eran
+  `notes-card.tsx` y la mitad "¿Cómo te sientes hoy?" de
+  `reflection-card.tsx`) — decisión explícita del usuario para reducir
+  fricción, no un recorte accidental. El endpoint `daily` y los campos
+  `mood`/`notes` siguen existiendo en el backend (`app/models.py`,
+  `app/schemas.py`); `reflection-card.tsx` sigue reenviando esos valores
+  tal cual vienen de `entry` al guardar la frase, para no pisarlos con
+  `null`. Si se quiere recuperar esa UI más adelante, el patrón de
+  sincronización de formulario (ver más abajo) es el mismo que ya se
+  usaba.
 - `src/components/layout/navbar.tsx` — barra superior glass, navegación
-  de fecha, badge de racha.
+  de fecha, badge de racha. El día de la semana (`formatLabel`) y los
+  títulos de tarjeta (`CardTitle` en `src/components/ui/card.tsx`) se
+  agrandaron a petición del usuario — no reducir su tamaño sin que lo
+  pida.
 - `src/components/dashboard/` — una tarjeta por funcionalidad:
   `task-card.tsx` (formulario + lista animada con `AnimatePresence` +
   gráfico de barras Recharts del desglose por categoría),
   `sleep-card.tsx` (formulario + donut Recharts de fases + duración
-  calculada), `reflection-card.tsx` (frase + selector de ánimo),
-  `notes-card.tsx`, `category-manager-dialog.tsx` (CRUD de categorías
-  en un `Dialog` de shadcn).
+  calculada, a ancho completo), `reflection-card.tsx` (solo la frase
+  del día), `category-manager-dialog.tsx` (CRUD de categorías en un
+  `Dialog` de shadcn).
 - `src/components/ui/` — componentes shadcn escritos a mano (Button,
   Card, Input, Textarea, Label, Select, Dialog, Separator, Badge,
   Skeleton, ToggleGroup, Sonner/Toaster), porque este entorno de
@@ -93,7 +105,7 @@ Motion, todo en uso.
   código consistente con los que ya existen.
 
 **Patrón de sincronización de estado en formularios** (importante si
-tocas `sleep-card.tsx`, `notes-card.tsx` o `reflection-card.tsx`): NO
+tocas `sleep-card.tsx` o `reflection-card.tsx`): NO
 usan `useEffect` + `setState` para sincronizar el formulario cuando
 llega una `entry`/`sleep` nueva de la API — eso dispara el lint error
 `react-hooks/set-state-in-effect` (regla nueva de React 19 / el

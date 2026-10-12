@@ -45,9 +45,8 @@ src/
     dashboard/
       task-card.tsx               # formulario + lista de tareas + gráfico de categorías
       sleep-card.tsx                # formulario de sueño + donut de fases + duración
-      reflection-card.tsx            # frase del día + selector de ánimo
-      notes-card.tsx                   # notas libres
-      category-manager-dialog.tsx       # CRUD de categorías
+      reflection-card.tsx            # frase del día (sin selector de ánimo, quitado de la UI)
+      category-manager-dialog.tsx     # CRUD de categorías
   hooks/                              # un hook SWR por recurso (useDaySummary, useCategories, useStreak)
   lib/
     api.ts                             # instancia de Axios + fetcher SWR + funciones de mutación
@@ -58,7 +57,7 @@ src/
 
 ## Patrón: sincronizar formularios con datos de SWR
 
-`sleep-card.tsx`, `notes-card.tsx` y `reflection-card.tsx` necesitan
+`sleep-card.tsx` y `reflection-card.tsx` necesitan
 estado local editable (lo que el usuario está escribiendo) inicializado
 desde datos que llegan de forma asíncrona (SWR). La tentación es un
 `useEffect` que haga `setState` cuando cambia la prop — pero eso dispara
