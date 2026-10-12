@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardPaste } from "lucide-react";
 
 import { Navbar } from "@/components/layout/navbar";
 import { RoutineDayCell } from "@/components/routines/routine-day-cell";
+import { RoutineImportDialog } from "@/components/routines/routine-import-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRoutine } from "@/hooks/use-routines";
@@ -25,6 +26,7 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
   const today = useMemo(() => new Date(), []);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const [importOpen, setImportOpen] = useState(false);
 
   const { routine, isLoading: routineLoading } = useRoutine(routineId);
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
@@ -129,6 +131,17 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
             <Button variant="outline" size="icon" className="size-8" onClick={() => goToMonth(1)} aria-label="Mes siguiente">
               <ChevronRight className="size-4" />
             </Button>
+            {routine?.type === "checklist" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-1 h-8"
+                onClick={() => setImportOpen(true)}
+              >
+                <ClipboardPaste className="size-3.5" />
+                Importar
+              </Button>
+            )}
           </div>
         </div>
 
@@ -159,6 +172,19 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
           </div>
         )}
       </main>
+
+      {routine && routine.type === "checklist" && (
+        <RoutineImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          routineId={routineId}
+          year={year}
+          month={month}
+          monthLabel={monthLabel}
+          itemsByDate={itemsByDate}
+          onImported={mutateItems}
+        />
+      )}
     </div>
   );
 }

@@ -150,6 +150,17 @@ class RoutineItemOut(BaseModel):
     position: int
 
 
+class RoutineBulkDay(BaseModel):
+    """Un día dentro de un pegado masivo: sustituye TODOS los items de ese
+    día por esta lista (incluido si alguno ya estaba tachado)."""
+    date: date
+    labels: list[str] = []
+
+
+class RoutineBulkSet(BaseModel):
+    days: list[RoutineBulkDay]
+
+
 # ---------- Vista agregada de un día completo ----------
 class DaySummary(BaseModel):
     date: date

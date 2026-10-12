@@ -55,11 +55,13 @@ src/
       routine-form-dialog.tsx          # diálogo "nueva rutina" (nombre/color/tipo)
       routine-detail-client.tsx         # calendario mensual de una rutina (estado + llamadas API)
       routine-day-cell.tsx               # una celda: items tachables o día entero tachable
+      routine-import-dialog.tsx           # diálogo "Importar" (pegar texto, ver sección de abajo)
   hooks/                              # un hook SWR por recurso (useDaySummary, useCategories,
                                        # useStreak, useRoutines, useRoutine, useRoutineItems)
   lib/
     api.ts                             # instancia de Axios + fetcher SWR + funciones de mutación
     date.ts                             # TODA la aritmética de fechas (ver nota de zona horaria abajo)
+    routine-bulk-text.ts                # parsea/genera el texto del diálogo "Importar"
     utils.ts                            # helper cn() (merge de clases Tailwind)
   types/
     index.ts                             # tipos TS reflejando los esquemas Pydantic del backend
@@ -112,6 +114,17 @@ entero con un solo click. `routines/[id]/page.tsx` es intencionadamente
 un Server Component casi vacío — ver el comentario dentro del archivo
 sobre `export const instant = false` antes de tocarlo o de copiar el
 patrón a otra ruta dinámica.
+
+**Importar un mes de golpe** (solo rutinas "checklist"): botón
+"Importar" junto al navegador de mes → diálogo con un textarea
+precargado con lo que ya hay ese mes, una línea por día en formato
+`"<día>. V-M, F-K"`. Al pegar y guardar, sustituye TODOS los items de
+cada día mencionado (pierde el `done` que tuvieran); un día que no
+aparece en el texto se deja intacto. Pensado para rellenar rutinas con
+un patrón que ya conoces (como una pauta de medicación/suplementos que
+rota) sin tener que escribir cada inicial a mano en la UI, día a día.
+
+
 
 ## Modo oscuro
 

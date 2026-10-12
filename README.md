@@ -112,6 +112,9 @@ Endpoints principales:
 - `GET/POST /api/routines`, `GET/PUT/DELETE /api/routines/{id}`
 - `GET/POST /api/routines/{id}/items?start=...&end=...` (rango de fechas),
   `PUT/DELETE /api/routines/items/{item_id}`
+- `PUT /api/routines/{id}/items/bulk` — importación masiva por rango de
+  días (solo rutinas "checklist"); sustituye los items de cada día
+  listado, pensado para pegar un mes entero de golpe
 
 ## Roadmap (siguientes iteraciones)
 

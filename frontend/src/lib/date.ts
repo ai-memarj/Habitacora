@@ -44,6 +44,16 @@ export function addMonths(year: number, month: number, delta: number): { year: n
   return { year: year2, month: month2 };
 }
 
+/** Cuántos días tiene un año/mes (mes 0-11). */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** Fecha ISO ("YYYY-MM-DD") a partir de año/mes (0-11)/día — constructor numérico, siempre hora local. */
+export function isoFromYMD(year: number, month: number, day: number): string {
+  return toISODate(new Date(year, month, day));
+}
+
 export interface CalendarDay {
   iso: string; // "YYYY-MM-DD"
   day: number; // día del mes (1-31)

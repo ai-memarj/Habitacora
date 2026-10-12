@@ -82,6 +82,13 @@ export const routineItemsApi = {
   update: (itemId: number, data: { label?: string | null; done?: boolean; position?: number }) =>
     api.put<RoutineItem>(`/api/routines/items/${itemId}`, data).then((r) => r.data),
   remove: (itemId: number) => api.delete(`/api/routines/items/${itemId}`),
+  /**
+   * Pegado masivo (ver src/lib/routine-bulk-text.ts): sustituye TODOS los
+   * items de cada día listado por los `labels` dados. Solo rutinas tipo
+   * "checklist" — el backend devuelve 400 si se llama en una "simple".
+   */
+  bulkSet: (routineId: number, days: { date: string; labels: string[] }[]) =>
+    api.put<RoutineItem[]>(`/api/routines/${routineId}/items/bulk`, { days }).then((r) => r.data),
 };
 
 // Re-exportados por conveniencia, para quien importe solo desde aquí.

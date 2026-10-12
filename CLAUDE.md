@@ -72,6 +72,16 @@ de rellenar — no añadir fricción con pasos innecesarios.
   "marcar racha" especial: en rutinas "simple" el frontend crea el item
   con `done=true` al primer click y alterna el campo `done` en los
   siguientes, en vez de borrar/crear cada vez.
+- **Importación masiva de rutinas (`PUT /api/routines/{id}/items/bulk`)
+  [nuevo]**: a petición del usuario, para no tener que escribir cada
+  inicial a mano día a día en la UI. Solo rutinas `"checklist"` (400 si
+  se llama en una `"simple"` — ahí no tiene sentido, es un solo check).
+  Payload `{"days": [{"date", "labels": [...]}]}`: por cada día de la
+  lista, BORRA todos sus `RoutineItem` existentes y los reemplaza por
+  `labels` (pierde el estado `done` que tuvieran — es "fijar el plan de
+  ese mes", no un merge). Un día que no aparece en `days` no se toca,
+  así que se puede pegar solo una parte del mes. Pensado para pegarse
+  de una sentada, no para ejecutarse repetidamente con solapes parciales.
 
 ## Estructura
 
@@ -104,11 +114,24 @@ Ver README.md — se mantiene ahí para no duplicar.
 - `src/lib/date.ts` — además de las utilidades de fecha del dashboard
   diario, tiene `buildMonthGrid(year, month)` (cuadrícula Lunes-Domingo
   de 5 o 6 semanas, con relleno del mes anterior/siguiente, igual que
-  Google Calendar) y `addMonths()`. Construida SOLO con el constructor
-  numérico `new Date(year, month, day)` (hora local inequívoca) y
-  `toLocaleDateString()` — nunca con `toISOString()` ni parseando
-  strings de fecha, por el mismo motivo que `shiftISODate` (ver más
-  abajo): evitar el bug de zona horaria ya corregido una vez.
+  Google Calendar), `addMonths()`, `daysInMonth()` e `isoFromYMD()`.
+  Construida SOLO con el constructor numérico `new Date(year, month,
+  day)` (hora local inequívoca) y `toLocaleDateString()` — nunca con
+  `toISOString()` ni parseando strings de fecha, por el mismo motivo
+  que `shiftISODate`: evitar el bug de zona horaria ya corregido una
+  vez (ver la entrada de arquitectura más arriba).
+- `src/lib/routine-bulk-text.ts` + `routine-import-dialog.tsx`
+  [nuevo] — importación masiva por mes: botón "Importar" junto al
+  navegador de mes (solo en rutinas "checklist"), abre un diálogo con
+  un textarea precargado con lo que ya hay ese mes (`formatRoutineBulkText`)
+  en formato `"<día>. <inicial1>, <inicial2>"` (una línea por día,
+  número = día del mes, no orden de las líneas). Al guardar,
+  `parseRoutineBulkText` separa días válidos de líneas con problemas
+  (día fuera de rango, línea irreconocible, día repetido en el texto —
+  se queda con la última) y solo bloquea el envío si NINGÚN día se
+  reconoció; los errores se muestran pero no impiden importar los días
+  que sí se entendieron. Llama a `routineItemsApi.bulkSet()` →
+  `PUT /api/routines/{id}/items/bulk`.
 - `src/components/layout/nav-links.tsx` — pestañas "Hoy" / "Rutinas" en
   el Navbar (usa `usePathname`). `Navbar` ahora acepta `date` /
   `onDateChange` / `streak` / `streakLoading` como props OPCIONALES

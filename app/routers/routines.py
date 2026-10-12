@@ -141,6 +141,47 @@ def create_routine_item(
     return item
 
 
+@router.put("/{routine_id}/items/bulk", response_model=list[schemas.RoutineItemOut])
+def bulk_set_routine_items(
+    routine_id: int, payload: schemas.RoutineBulkSet, db: Session = Depends(get_db)
+):
+    """Pegado masivo: para cada día de `payload.days`, sustituye TODOS sus
+    items existentes por los `labels` dados (borra y recrea, perdiendo el
+    estado `done` que tuvieran ese día — es "fijar el plan", no un toggle).
+    Un día que no aparece en `payload.days` no se toca. Pensado para que el
+    frontend pegue un mes entero de golpe en vez de añadir item a item.
+    """
+    routine = db.get(models.Routine, routine_id)
+    if not routine:
+        raise HTTPException(status_code=404, detail="Rutina no encontrada")
+    if routine.type != "checklist":
+        raise HTTPException(
+            status_code=400,
+            detail="El pegado masivo solo está disponible en rutinas de tipo 'checklist'",
+        )
+
+    created: list[models.RoutineItem] = []
+    for day in payload.days:
+        db.query(models.RoutineItem).filter(
+            models.RoutineItem.routine_id == routine_id,
+            models.RoutineItem.date == day.date,
+        ).delete()
+        for position, raw_label in enumerate(day.labels):
+            label = raw_label.strip() or None
+            if label is None:
+                continue
+            item = models.RoutineItem(
+                routine_id=routine_id, date=day.date, label=label, position=position
+            )
+            db.add(item)
+            created.append(item)
+
+    db.commit()
+    for item in created:
+        db.refresh(item)
+    return created
+
+
 @router.put("/items/{item_id}", response_model=schemas.RoutineItemOut)
 def update_routine_item(
     item_id: int, payload: schemas.RoutineItemUpdate, db: Session = Depends(get_db)
