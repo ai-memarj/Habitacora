@@ -1,58 +1,99 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { useDaySummary } from "@/hooks/use-day-summary";
+import { motion } from "framer-motion";
 
-/**
- * Página de arranque — solo confirma que el andamiaje está bien conectado:
- * Tailwind, shadcn (Button/Card), Lucide y SWR hablando con la API de
- * FastAPI. Las pantallas reales (tareas, sueño, racha, gráficos) se
- * construyen a partir de aquí en los siguientes pasos.
- */
+import { Navbar } from "@/components/layout/navbar";
+import { TaskCard } from "@/components/dashboard/task-card";
+import { SleepCard } from "@/components/dashboard/sleep-card";
+import { ReflectionCard } from "@/components/dashboard/reflection-card";
+import { NotesCard } from "@/components/dashboard/notes-card";
+import { CategoryManagerDialog } from "@/components/dashboard/category-manager-dialog";
+
+import { useDaySummary } from "@/hooks/use-day-summary";
+import { useCategories } from "@/hooks/use-categories";
+import { useStreak } from "@/hooks/use-streak";
+
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
+};
+
 export default function Home() {
-  // "today" se calcula en cliente (useEffect), no durante el render/prerender:
-  // Next.js 16 con Cache Components no permite leer la hora actual mientras
-  // prerenderiza un Client Component, así que empieza en null y se rellena
-  // tras el montaje.
-  const [today, setToday] = useState<string | null>(null);
+  // "today" se calcula en cliente, no durante el prerender (Next 16 +
+  // Cache Components no permite leer la hora actual en un Client
+  // Component mientras prerenderiza). A diferencia de las tarjetas, aquí
+  // no hay una prop de la que derivar el valor — es el reloj del
+  // navegador leído una vez al montar — así que un efecto es el patrón
+  // correcto, no una excepción a evitar.
+  const [date, setDate] = useState<string | null>(null);
   useEffect(() => {
-    setToday(new Date().toISOString().slice(0, 10));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura única del reloj de cliente tras montar, no hay prop que derivar
+    setDate(new Date().toISOString().slice(0, 10));
   }, []);
 
-  const { summary, isLoading, isError } = useDaySummary(today ?? "");
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  const { summary, isLoading, mutate: mutateSummary } = useDaySummary(date ?? "");
+  const { categories, mutate: mutateCategories } = useCategories();
+  const { streak, isLoading: streakLoading, mutate: mutateStreak } = useStreak();
+
+  function refreshAll() {
+    mutateSummary();
+    mutateStreak();
+  }
+
+  function refreshCategoriesAndTasks() {
+    mutateCategories();
+    mutateSummary();
+  }
+
+  if (!date) return null; // evita parpadeo hasta tener la fecha de cliente
 
   return (
-    <div className="min-h-screen">
-      {/* Navbar con efecto glass, flotante sobre el contenido */}
-      <nav className="glass sticky top-0 z-10 flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2 font-semibold">
-          <Activity className="size-5 text-primary" />
-          Bitácora
-        </div>
-        <Button size="sm">Nueva tarea</Button>
-      </nav>
+    <div className="min-h-screen pb-16">
+      <Navbar date={date} onDateChange={setDate} streak={streak} streakLoading={streakLoading} />
 
-      <main className="mx-auto max-w-2xl px-6 py-10">
-        <Card>
-          <CardHeader>
-            <CardTitle>Andamiaje conectado ✅</CardTitle>
-            <CardDescription>
-              Next.js + TypeScript + Tailwind + shadcn/ui + Lucide + SWR, hablando con
-              FastAPI en <code>{process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}</code>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {!today && "Inicializando..."}
-            {today && isLoading && "Cargando resumen de hoy desde la API..."}
-            {today && isError && "No se pudo conectar con la API — ¿está arrancado uvicorn en :8000?"}
-            {today && summary &&
-              `Hoy tienes ${summary.tasks.length} tarea(s) registrada(s), ${summary.total_minutes} min en total.`}
-          </CardContent>
-        </Card>
-      </main>
+      <motion.main
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="mx-auto grid max-w-4xl gap-4 px-5 pt-6 sm:px-8 md:grid-cols-2"
+      >
+        <motion.div variants={item} className="md:col-span-2">
+          <ReflectionCard date={date} entry={summary?.entry} onChanged={refreshAll} />
+        </motion.div>
+
+        <motion.div variants={item} className="md:col-span-2">
+          <TaskCard
+            date={date}
+            summary={summary}
+            isLoading={isLoading}
+            categories={categories}
+            onChanged={refreshAll}
+            onManageCategories={() => setCategoryModalOpen(true)}
+          />
+        </motion.div>
+
+        <motion.div variants={item}>
+          <SleepCard date={date} sleep={summary?.sleep} onChanged={refreshAll} />
+        </motion.div>
+
+        <motion.div variants={item}>
+          <NotesCard date={date} entry={summary?.entry} onChanged={refreshAll} />
+        </motion.div>
+      </motion.main>
+
+      <CategoryManagerDialog
+        open={categoryModalOpen}
+        onOpenChange={setCategoryModalOpen}
+        categories={categories}
+        onChanged={refreshCategoriesAndTasks}
+      />
     </div>
   );
 }

@@ -61,27 +61,60 @@ decidió posponerlas deliberadamente, no que se olvidaron:
 - Exportar un resumen de periodo a PDF para consulta.
 - Recordatorio/check-in si no se ha registrado nada a cierta hora.
 
-## Estado del frontend (Next.js)
+## Estado del frontend (Next.js) [actualizado]
 
-En `frontend/` hay **andamiaje, no pantallas completas**: Next.js +
-TypeScript + Tailwind v4 (config CSS-first en `globals.css`, sin
-`tailwind.config.js`) + shadcn/ui (solo `Button` y `Card` creados a
-mano, el resto se añade con `npx shadcn@latest add <componente>`) +
-Lucide + SWR (patrón de hook por recurso en `src/hooks/`, ver
-`use-day-summary.ts` como ejemplo) + Axios (`src/lib/api.ts`) +
-Recharts/Framer Motion instalados pero sin usar todavía.
+`frontend/` ya tiene **las pantallas reales construidas**, no solo
+andamiaje: Next.js + TypeScript + Tailwind v4 (config CSS-first en
+`globals.css`) + shadcn/ui + Lucide + SWR + Axios + Recharts + Framer
+Motion, todo en uso.
 
-`src/app/page.tsx` es solo una página de verificación ("Andamiaje
-conectado") — las pantallas reales (tareas del día, sueño, racha,
-gestión de categorías, gráficos) están por construir sobre esta base.
-`components.json` ya está configurado como si `shadcn init` se hubiera
-ejecutado, para que el CLI funcione sin fricción en una máquina con
-acceso normal a internet (en el entorno donde se generó este andamiaje
-no había salida de red hacia `ui.shadcn.com`, solo hacia npm/GitHub).
+**Páginas/componentes:**
+- `src/app/page.tsx` — dashboard real de un día: Navbar + Reflexión
+  (frase/ánimo) + Tareas + Sueño + Notas, animado con Framer Motion
+  (stagger de entrada) y conectado a la API vía los hooks de
+  `src/hooks/`.
+- `src/components/layout/navbar.tsx` — barra superior glass, navegación
+  de fecha, badge de racha.
+- `src/components/dashboard/` — una tarjeta por funcionalidad:
+  `task-card.tsx` (formulario + lista animada con `AnimatePresence` +
+  gráfico de barras Recharts del desglose por categoría),
+  `sleep-card.tsx` (formulario + donut Recharts de fases + duración
+  calculada), `reflection-card.tsx` (frase + selector de ánimo),
+  `notes-card.tsx`, `category-manager-dialog.tsx` (CRUD de categorías
+  en un `Dialog` de shadcn).
+- `src/components/ui/` — componentes shadcn escritos a mano (Button,
+  Card, Input, Textarea, Label, Select, Dialog, Separator, Badge,
+  Skeleton, ToggleGroup, Sonner/Toaster), porque este entorno de
+  generación no tenía salida de red hacia `ui.shadcn.com` (solo
+  npm/GitHub) y el CLI de shadcn no podía ejecutarse. `components.json`
+  está configurado como si `shadcn init` se hubiera ejecutado, así que
+  `npx shadcn@latest add <componente>` funciona sin fricción en una
+  máquina con internet normal para añadir componentes nuevos — generará
+  código consistente con los que ya existen.
+
+**Patrón de sincronización de estado en formularios** (importante si
+tocas `sleep-card.tsx`, `notes-card.tsx` o `reflection-card.tsx`): NO
+usan `useEffect` + `setState` para sincronizar el formulario cuando
+llega una `entry`/`sleep` nueva de la API — eso dispara el lint error
+`react-hooks/set-state-in-effect` (regla nueva de React 19 / el
+`eslint-config-next` de este proyecto). En su lugar usan el patrón
+oficial de React "ajustar estado durante el render": guardan la prop
+anterior en un `useState` y comparan por referencia en el cuerpo del
+componente (`if (prop !== prevProp) { setPrevProp(prop); setState(...) }`).
+Tampoco se debe escribir en un `ref.current` durante el render (otro
+lint error, `react-hooks/refs`) — por eso estos componentes comparan el
+valor "guardado" directamente contra la prop (`entry?.notes`) en vez de
+guardar una copia en un `ref`. Replicar este patrón en cualquier
+componente nuevo que sincronice estado local editable desde datos
+asíncronos de SWR.
 
 Modo oscuro: fijo por defecto (clase `dark` en `<html>`,
 `src/app/layout.tsx`). Pendiente añadir `next-themes` si se quiere un
 selector real de tema.
+
+**Pendiente de construir:** selector de tema claro/oscuro real, vista
+de tendencias (gráficos históricos más allá de un solo día), objetivos
+a medio/largo plazo, exportación a PDF.
 
 ## Cómo seguir desde aquí
 
