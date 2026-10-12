@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bitácora</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -12,12 +16,15 @@
   <header class="topbar">
     <div class="topbar__title">
       <h1>Bitácora</h1>
-      <p id="today-label" class="muted"></p>
+      <div class="topbar__meta">
+        <p id="today-label" class="muted"></p>
+        <span id="streak-badge" class="streak-badge hidden"></span>
+      </div>
     </div>
     <div class="topbar__nav">
-      <button id="prev-day" class="icon-btn" title="Día anterior">‹</button>
+      <button id="prev-day" class="icon-btn" title="Día anterior" aria-label="Día anterior">‹</button>
       <input type="date" id="date-picker">
-      <button id="next-day" class="icon-btn" title="Día siguiente">›</button>
+      <button id="next-day" class="icon-btn" title="Día siguiente" aria-label="Día siguiente">›</button>
     </div>
   </header>
 
@@ -33,11 +40,11 @@
     <section class="card card--mood">
       <label>¿Cómo te sientes hoy?</label>
       <div class="mood-selector" id="mood-selector">
-        <button class="mood-option" data-mood="1" title="Muy mal">😞</button>
-        <button class="mood-option" data-mood="2" title="Mal">🙁</button>
-        <button class="mood-option" data-mood="3" title="Normal">😐</button>
-        <button class="mood-option" data-mood="4" title="Bien">🙂</button>
-        <button class="mood-option" data-mood="5" title="Muy bien">😄</button>
+        <button class="mood-option" data-mood="1" title="Muy mal" type="button">😞</button>
+        <button class="mood-option" data-mood="2" title="Mal" type="button">🙁</button>
+        <button class="mood-option" data-mood="3" title="Normal" type="button">😐</button>
+        <button class="mood-option" data-mood="4" title="Bien" type="button">🙂</button>
+        <button class="mood-option" data-mood="5" title="Muy bien" type="button">😄</button>
       </div>
     </section>
 
@@ -50,19 +57,34 @@
 
       <form id="task-form" class="task-form">
         <select id="task-category" required></select>
-        <input type="text" id="task-name" placeholder="Nombre de la tarea" required>
-        <input type="number" id="task-minutes" placeholder="min" min="1" required>
-        <button type="submit" class="btn-primary">Añadir</button>
+        <input type="text" id="task-name" placeholder="Nombre de la tarea" required autocomplete="off">
+        <div class="minutes-field">
+          <input type="number" id="task-minutes" placeholder="min" min="1" required>
+          <div class="chip-row" id="minute-chips">
+            <button type="button" class="chip" data-minutes="15">15</button>
+            <button type="button" class="chip" data-minutes="30">30</button>
+            <button type="button" class="chip" data-minutes="45">45</button>
+            <button type="button" class="chip" data-minutes="60">60</button>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary">
+          <span class="btn-plus">+</span> Añadir
+        </button>
       </form>
 
       <ul id="task-list" class="task-list"></ul>
+
+      <div id="category-breakdown" class="category-breakdown hidden"></div>
 
       <button id="manage-categories-btn" class="link-btn">Gestionar categorías</button>
     </section>
 
     <!-- Sueño -->
     <section class="card card--sleep">
-      <h2>Sueño</h2>
+      <div class="card-header">
+        <h2>Sueño</h2>
+        <span id="sleep-duration" class="pill pill--soft hidden"></span>
+      </div>
       <div class="sleep-grid">
         <label>Hora de dormir
           <input type="time" id="sleep-time">
@@ -82,8 +104,12 @@
           <input type="number" id="rem-pct" min="0" max="100">
         </label>
       </div>
+      <div id="sleep-bar" class="sleep-bar hidden">
+        <div class="sleep-bar__segment sleep-bar__segment--light" id="sleep-bar-light"></div>
+        <div class="sleep-bar__segment sleep-bar__segment--deep" id="sleep-bar-deep"></div>
+        <div class="sleep-bar__segment sleep-bar__segment--rem" id="sleep-bar-rem"></div>
+      </div>
       <button id="save-sleep-btn" class="btn-secondary">Guardar sueño</button>
-      <p id="sleep-saved-msg" class="muted hidden">Guardado ✓</p>
     </section>
 
     <!-- Notas -->
@@ -100,16 +126,30 @@
   <div class="modal__content">
     <div class="modal__header">
       <h2>Categorías</h2>
-      <button id="close-category-modal" class="icon-btn">✕</button>
+      <button id="close-category-modal" class="icon-btn" aria-label="Cerrar">✕</button>
     </div>
     <ul id="category-list" class="category-list"></ul>
     <form id="category-form" class="category-form">
-      <input type="text" id="category-name" placeholder="Nueva categoría" required>
+      <input type="text" id="category-name" placeholder="Nueva categoría" required autocomplete="off">
       <input type="color" id="category-color" value="#6C5CE7">
       <button type="submit" class="btn-primary">Crear</button>
     </form>
   </div>
 </div>
+
+<!-- Modal de confirmación genérico -->
+<div id="confirm-modal" class="modal hidden">
+  <div class="modal__content modal__content--small">
+    <p id="confirm-message">¿Seguro?</p>
+    <div class="modal__actions">
+      <button id="confirm-cancel" class="btn-ghost">Cancelar</button>
+      <button id="confirm-accept" class="btn-danger">Borrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
 
 <script src="/static/js/app.js"></script>
 </body>

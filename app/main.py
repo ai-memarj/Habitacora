@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.database import Base, engine, SessionLocal
 from app.seed import seed_default_categories
-from app.routers import categories, tasks, sleep, daily
+from app.routers import categories, tasks, sleep, daily, stats
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,6 +38,7 @@ app.include_router(tasks.router)
 app.include_router(sleep.router)
 app.include_router(daily.router)
 app.include_router(daily.summary_router)
+app.include_router(stats.router)
 
 
 @app.get("/")
