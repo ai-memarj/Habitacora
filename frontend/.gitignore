@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...excepto el archivo de ejemplo, que SÍ debe versionarse: sin él,
+# nadie que clone el repo sabe qué variables necesita crear.
+!.env.local.example
 
 # vercel
 .vercel
