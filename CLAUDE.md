@@ -221,20 +221,61 @@ a medio/largo plazo, exportación a PDF.
 
 ## Cómo seguir desde aquí
 
+**El repo ya está clonado en el Windows del usuario (Git Bash), de una
+sesión anterior** — esto NO es un entorno nuevo partiendo de cero. Lo
+primero de la próxima sesión es casi siempre:
+
+1. `git pull` en la carpeta ya clonada (trae Rutinas, importación
+   masiva, y los arreglos de navegación de fecha/formulario de tareas —
+   ver `git log --oneline` para el detalle de cada commit).
+2. Reinstalar dependencias por si han cambiado: `pip install -r
+   requirements.txt` (backend) y `npm install` dentro de `frontend/`
+   (frontend ya tenía `node_modules` y `.env.local` de antes, no hace
+   falta recrearlos salvo que falten).
+3. Arrancar los dos procesos (comandos exactos abajo) y entrar a
+   **`http://localhost:3000`** — NO `:8000`, que es solo la API JSON y
+   da 404 en `/` a propósito. ("No carga nada" casi siempre fue, en la
+   sesión anterior, estar entrando al puerto equivocado.)
+4. **Esta es la primera vez que vale la pena meter datos reales.** El
+   entorno de desarrollo en la nube donde se construyó todo esto hasta
+   ahora es efímero (se borra al terminar la sesión) — por eso no se
+   guardó nada real ahí. En local, `data/habitos.db` si persiste en el
+   disco del usuario.
+
 Backend y frontend se arrancan por separado, en dos terminales.
 
 **Backend:**
-1. `git clone` este repo.
-2. `python3 -m venv .venv && source .venv/bin/activate`
-3. `pip install -r requirements.txt`
-4. `uvicorn app.main:app --reload --port 8000`
-5. La base de datos se crea sola en `data/habitos.db` (no versionada,
-   ver `.gitignore`).
+1. `python3 -m venv .venv && source .venv/bin/activate` (Windows, Git
+   Bash: `source .venv/Scripts/activate`)
+2. `pip install -r requirements.txt`
+3. `uvicorn app.main:app --reload --reload-dir app --port 8000`
+   **— el `--reload-dir app` importa**: sin él, uvicorn vigila TODO el
+   repo, incluido `frontend/node_modules`, y se reinicia solo cada vez
+   que `npm install` toca algo ahí (visto de verdad en la sesión
+   anterior, con el servidor reiniciándose sin motivo real).
+4. La base de datos y las categorías por defecto se crean solas en
+   `data/habitos.db` la primera vez (no versionado, ver `.gitignore`).
 
 **Frontend:**
 1. `cd frontend && npm install`
-2. `cp .env.local.example .env.local`
+2. `cp .env.local.example .env.local` (si no existe ya de antes)
 3. `npm run dev`
+
+**Verificación tras cambios grandes** (lo que se corrió antes de cada
+commit en las últimas sesiones — repetirlo evita subir algo roto):
+```bash
+cd frontend
+npx tsc --noEmit -p tsconfig.json
+npx eslint src
+```
+`next build` en el entorno de desarrollo en la nube donde se construyó
+esto SIEMPRE falla ahí por no poder llegar a `fonts.googleapis.com` —
+no es un bug real de la app (confirmado funcionando en una máquina con
+internet normal); si hace falta verificarlo de todas formas, hay una
+nota con el procedimiento (quitar temporalmente las Google Fonts de
+`layout.tsx`, compilar, restaurar) en `frontend/README.md`. **En local
+esto no debería pasar** — `next build`/`npm run dev` deberían ir sin
+tocar nada, es solo una limitación de red de ese entorno concreto.
 
 Para desplegar en servidor propio: backend con `DATABASE_URL` apuntando
 a la BD de producción, servido por un proceso gestionado (systemd o

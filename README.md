@@ -58,13 +58,16 @@ Backend y frontend se arrancan **por separado**, en dos terminales.
 **Backend (API):**
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate     # en Windows: .venv\Scripts\activate
+source .venv/bin/activate     # en Windows (Git Bash): source .venv/Scripts/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --reload-dir app --port 8000
 ```
-API en `http://localhost:8000`, documentación interactiva en `/docs`.
-La base de datos y las categorías por defecto (Casa, Rutina, Coche,
-Guitarra, Deporte, Trabajo) se crean automáticamente la primera vez.
+El `--reload-dir app` evita que uvicorn vigile todo el repo (incluido
+`frontend/node_modules`, que provoca reinicios espurios cada vez que
+`npm install` toca algo ahí). API en `http://localhost:8000`,
+documentación interactiva en `/docs`. La base de datos y las categorías
+por defecto (Casa, Rutina, Coche, Guitarra, Deporte, Trabajo) se crean
+automáticamente la primera vez.
 
 **Frontend (interfaz):**
 ```bash
@@ -118,11 +121,17 @@ Endpoints principales:
 
 ## Roadmap (siguientes iteraciones)
 
-- Construir las pantallas reales en el frontend (tareas, sueño, racha,
-  gestión de categorías) sobre el andamiaje ya montado.
+Pantallas reales, Rutinas (calendarios de hábitos) e importación masiva
+ya están construidas — ver `CLAUDE.md` para el detalle de cada una.
+Pendiente, deliberadamente pospuesto (no olvidado):
+
 - Gráficos de tendencia (sueño, minutos por categoría, ánimo) con Recharts.
 - Objetivos a medio/largo plazo vinculados a tareas diarias.
 - Exportar resumen de un periodo a PDF para consulta con el psicólogo.
+- Recordatorio/check-in si no se ha registrado nada a cierta hora.
+- Renombrar/recolorear una rutina ya creada (de momento hay que
+  borrarla y recrearla).
+- Selector de tema claro/oscuro real (ahora mismo fijo en oscuro).
 - Migrar la base de datos a Postgres y desplegar en servidor propio (Oracle Cloud).
 
 ## Despliegue futuro
