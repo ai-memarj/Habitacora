@@ -5,3 +5,8 @@ venv/
 data/*.db
 .env
 .DS_Store
+
+# El frontend (Next.js) tiene su propio .gitignore en /frontend que ya
+# cubre node_modules/.next/etc. Esta línea es un cinturón de seguridad
+# por si alguna vez se ejecuta npm install desde la raíz por error.
+node_modules/

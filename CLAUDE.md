@@ -17,11 +17,16 @@ de rellenar — no añadir fricción con pasos innecesarios.
   SQLite-específico en modelos ni routers, así que cambiar de motor es
   solo cambiar esa variable de entorno (y correr las migraciones si ya
   hay datos).
-- **Sin frontend framework**: HTML/CSS/JS vanilla servido por FastAPI
-  con Jinja2. Decisión deliberada para el prototipo — una sola página,
-  sin necesidad de build step. Si el proyecto crece mucho en
-  complejidad de UI, valorar migrar a algo como React/Vue, pero no
-  antes de que la app de más de una vista/página real.
+- **Frontend desacoplado (Next.js), backend como API pura** [actualizado]:
+  el prototipo inicial servía HTML vanilla directamente desde FastAPI
+  (Jinja2 + static files). Se migró deliberadamente a dos procesos
+  separados: `app/` (FastAPI, solo JSON) y `frontend/` (Next.js App
+  Router + TypeScript + Tailwind + shadcn/ui). FastAPI ya NO sirve HTML
+  ni archivos estáticos — si ves código que intenta montar `StaticFiles`
+  o `Jinja2Templates` en `app/main.py`, es regresión, no intención.
+  CORS está configurado en `app/main.py` vía `FRONTEND_ORIGINS` (env
+  var, por defecto `localhost:3000`); al desplegar, añadir el dominio
+  real ahí en vez de tocar código.
 - **"Completar" una tarea = registrar minutos**: no existe un campo
   booleano de completado. El usuario fue explícito en que introducir
   tiempo dedicado ya implica que se hizo. No añadir ese campo sin que
@@ -56,8 +61,33 @@ decidió posponerlas deliberadamente, no que se olvidaron:
 - Exportar un resumen de periodo a PDF para consulta.
 - Recordatorio/check-in si no se ha registrado nada a cierta hora.
 
+## Estado del frontend (Next.js)
+
+En `frontend/` hay **andamiaje, no pantallas completas**: Next.js +
+TypeScript + Tailwind v4 (config CSS-first en `globals.css`, sin
+`tailwind.config.js`) + shadcn/ui (solo `Button` y `Card` creados a
+mano, el resto se añade con `npx shadcn@latest add <componente>`) +
+Lucide + SWR (patrón de hook por recurso en `src/hooks/`, ver
+`use-day-summary.ts` como ejemplo) + Axios (`src/lib/api.ts`) +
+Recharts/Framer Motion instalados pero sin usar todavía.
+
+`src/app/page.tsx` es solo una página de verificación ("Andamiaje
+conectado") — las pantallas reales (tareas del día, sueño, racha,
+gestión de categorías, gráficos) están por construir sobre esta base.
+`components.json` ya está configurado como si `shadcn init` se hubiera
+ejecutado, para que el CLI funcione sin fricción en una máquina con
+acceso normal a internet (en el entorno donde se generó este andamiaje
+no había salida de red hacia `ui.shadcn.com`, solo hacia npm/GitHub).
+
+Modo oscuro: fijo por defecto (clase `dark` en `<html>`,
+`src/app/layout.tsx`). Pendiente añadir `next-themes` si se quiere un
+selector real de tema.
+
 ## Cómo seguir desde aquí
 
+Backend y frontend se arrancan por separado, en dos terminales.
+
+**Backend:**
 1. `git clone` este repo.
 2. `python3 -m venv .venv && source .venv/bin/activate`
 3. `pip install -r requirements.txt`
@@ -65,6 +95,13 @@ decidió posponerlas deliberadamente, no que se olvidaron:
 5. La base de datos se crea sola en `data/habitos.db` (no versionada,
    ver `.gitignore`).
 
-Para desplegar en servidor propio: cambiar `DATABASE_URL` a la BD de
-producción, servir con un proceso gestionado (systemd o Docker) detrás
-de un reverse proxy (nginx), y quitar `--reload`.
+**Frontend:**
+1. `cd frontend && npm install`
+2. `cp .env.local.example .env.local`
+3. `npm run dev`
+
+Para desplegar en servidor propio: backend con `DATABASE_URL` apuntando
+a la BD de producción, servido por un proceso gestionado (systemd o
+Docker) tras un reverse proxy (nginx), sin `--reload`; frontend
+compilado con `next build` y servido como app Next.js. Añadir el
+dominio real del frontend a `FRONTEND_ORIGINS` en el backend.

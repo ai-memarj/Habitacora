@@ -5,20 +5,37 @@ Registro diario personal: tareas por categoría y tiempo dedicado, sueño
 Pensado como enlace diario con uno mismo y como libro de consulta para
 terapia.
 
-## Stack
+## Arquitectura
 
-- **Backend:** FastAPI + SQLAlchemy
+Monorepo con **backend y frontend desacoplados**, cada uno con su propio
+proceso de desarrollo:
+
+```
+Habitacora/
+├── app/            # Backend: FastAPI, API REST pura (JSON), sin HTML
+├── frontend/        # Frontend: Next.js (App Router) + TypeScript
+└── data/              # Base de datos SQLite (solo usada por el backend)
+```
+
+- **Backend:** FastAPI + SQLAlchemy — ver detalle más abajo.
+- **Frontend:** Next.js + TypeScript + Tailwind + shadcn/ui — ver `frontend/README.md`.
+- **Comunicación:** el frontend consume la API vía REST/JSON (fetch/axios/SWR).
+  CORS está habilitado en el backend para el origen del frontend en desarrollo
+  (`http://localhost:3000`).
+
+## Backend — Stack
+
+- **Framework:** FastAPI
 - **Base de datos:** SQLite para desarrollo (fichero en `data/habitos.db`).
   Migrar a Postgres/MySQL en el futuro solo requiere cambiar la variable
   de entorno `DATABASE_URL`; el resto del código no cambia.
-- **Frontend:** HTML + CSS + JS vanilla, servido directamente por FastAPI
-  (sin build step, sin frameworks de JS). Las plantillas usan Jinja2.
+- **ORM:** SQLAlchemy
 
-## Estructura del proyecto
+## Backend — Estructura
 
 ```
 app/
-  main.py          # punto de entrada, monta routers y sirve la página
+  main.py          # punto de entrada: API FastAPI + CORS, sin HTML ni estáticos
   database.py       # configuración de SQLAlchemy / sesión
   models.py         # modelos: Category, Task, SleepLog, DailyEntry
   schemas.py         # esquemas Pydantic (entrada/salida de la API)
@@ -28,32 +45,35 @@ app/
     tasks.py          # CRUD de tareas diarias
     sleep.py           # registro de sueño (upsert por día)
     daily.py            # frase/ánimo/notas + resumen agregado del día
-  templates/
-    index.html         # página principal (SPA simple de una vista)
-  static/
-    css/style.css
-    js/app.js            # toda la lógica de frontend (fetch a la API)
+    stats.py              # racha de días consecutivos (streak)
 data/
   habitos.db              # base de datos SQLite (se crea sola, no versionada)
 ```
 
 ## Arrancar en local
 
+Backend y frontend se arrancan **por separado**, en dos terminales.
+
+**Backend (API):**
 ```bash
-# 1. Crear entorno virtual (recomendado)
 python3 -m venv .venv
 source .venv/bin/activate     # en Windows: .venv\Scripts\activate
-
-# 2. Instalar dependencias
 pip install -r requirements.txt
-
-# 3. Arrancar el servidor
 uvicorn app.main:app --reload --port 8000
 ```
+API en `http://localhost:8000`, documentación interactiva en `/docs`.
+La base de datos y las categorías por defecto (Casa, Rutina, Coche,
+Guitarra, Deporte, Trabajo) se crean automáticamente la primera vez.
 
-Abre `http://localhost:8000` en el navegador. La base de datos y las
-categorías por defecto (Casa, Rutina, Coche, Guitarra, Deporte, Trabajo)
-se crean automáticamente la primera vez que arranca.
+**Frontend (interfaz):**
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+npm run dev
+```
+Interfaz en `http://localhost:3000`. Ver `frontend/README.md` para más
+detalle del stack y estructura de carpetas.
 
 ## Modelo de datos (resumen)
 
@@ -77,12 +97,13 @@ Endpoints principales:
 - `GET /api/sleep/{fecha}`, `PUT /api/sleep` (upsert por fecha)
 - `GET /api/daily/{fecha}`, `PUT /api/daily` (upsert por fecha)
 - `GET /api/summary/{fecha}` — vista agregada del día (tareas + sueño + entrada)
+- `GET /api/stats/streak` — racha de días consecutivos con registro
 
 ## Roadmap (siguientes iteraciones)
 
-- Gráficos de tendencia (sueño, minutos por categoría, ánimo) — idealmente
-  antes de añadirlos, revisar si el entorno ofrece un tipo de artefacto
-  Dashboard nativo.
+- Construir las pantallas reales en el frontend (tareas, sueño, racha,
+  gestión de categorías) sobre el andamiaje ya montado.
+- Gráficos de tendencia (sueño, minutos por categoría, ánimo) con Recharts.
 - Objetivos a medio/largo plazo vinculados a tareas diarias.
 - Exportar resumen de un periodo a PDF para consulta con el psicólogo.
 - Migrar la base de datos a Postgres y desplegar en servidor propio (Oracle Cloud).
@@ -91,5 +112,8 @@ Endpoints principales:
 
 Pensado para, cuando el prototipo esté maduro, clonar este repo en un
 entorno local (o directamente en Claude Code) y continuar el desarrollo
-ahí, para finalmente desplegar en un servidor propio. Ver `CLAUDE.md`
-para las decisiones de arquitectura que conviene conocer antes de seguir.
+ahí, para finalmente desplegar en un servidor propio: backend como
+servicio FastAPI/uvicorn tras un reverse proxy, frontend compilado con
+`next build` y servido como app Next.js (o exportado, según necesidad).
+Ver `CLAUDE.md` para las decisiones de arquitectura que conviene conocer
+antes de seguir.
