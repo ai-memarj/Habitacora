@@ -5,18 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { shiftISODate } from "@/lib/date";
 
 interface NavbarProps {
   date: string; // ISO "YYYY-MM-DD"
   onDateChange: (date: string) => void;
   streak: number;
   streakLoading: boolean;
-}
-
-function shiftISODate(iso: string, delta: number) {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + delta);
-  return d.toISOString().slice(0, 10);
 }
 
 function formatLabel(iso: string) {

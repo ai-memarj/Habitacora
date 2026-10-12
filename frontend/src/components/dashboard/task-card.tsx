@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
   SelectContent,
@@ -32,8 +31,6 @@ interface TaskCardProps {
   onManageCategories: () => void;
 }
 
-const QUICK_MINUTES = ["15", "30", "45", "60"];
-
 export function TaskCard({
   date,
   summary,
@@ -43,6 +40,7 @@ export function TaskCard({
   onManageCategories,
 }: TaskCardProps) {
   const [name, setName] = useState("");
+  const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
@@ -64,17 +62,19 @@ export function TaskCard({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const cat = categoryId || categories[0]?.id.toString();
-    if (!name.trim() || !minutes || !cat) return;
+    const durationMinutes = (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+    if (!name.trim() || durationMinutes <= 0 || !cat) return;
 
     setSubmitting(true);
     try {
       await tasksApi.create({
         date,
         name: name.trim(),
-        minutes: Number(minutes),
+        minutes: durationMinutes,
         category_id: Number(cat),
       });
       setName("");
+      setHours("");
       setMinutes("");
       onChanged();
     } catch {
@@ -139,29 +139,28 @@ export function TaskCard({
             onChange={(e) => setName(e.target.value)}
             className="flex-[2] min-w-0"
           />
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                placeholder="min"
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-                className="w-20"
-              />
-              <ToggleGroup
-                type="single"
-                value={minutes}
-                onValueChange={(v) => v && setMinutes(v)}
-                className="gap-1"
-              >
-                {QUICK_MINUTES.map((m) => (
-                  <ToggleGroupItem key={m} value={m}>
-                    {m}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="number"
+              min={0}
+              placeholder="0"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              className="w-16"
+              aria-label="Horas dedicadas"
+            />
+            <span className="text-xs text-muted-foreground">h</span>
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              placeholder="0"
+              value={minutes}
+              onChange={(e) => setMinutes(e.target.value)}
+              className="w-16"
+              aria-label="Minutos dedicados"
+            />
+            <span className="text-xs text-muted-foreground">min</span>
           </div>
           <Button type="submit" disabled={submitting} className="sm:w-auto">
             <Plus className="size-4" />

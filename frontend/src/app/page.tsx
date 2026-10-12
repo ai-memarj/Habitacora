@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
+import { todayISO } from "@/lib/date";
 import { Navbar } from "@/components/layout/navbar";
 import { TaskCard } from "@/components/dashboard/task-card";
 import { SleepCard } from "@/components/dashboard/sleep-card";
@@ -32,7 +33,7 @@ export default function Home() {
   const [date, setDate] = useState<string | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura única del reloj de cliente tras montar, no hay prop que derivar
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayISO());
   }, []);
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
