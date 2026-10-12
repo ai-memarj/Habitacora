@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitácora</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="topbar__title">
+      <h1>Bitácora</h1>
+      <p id="today-label" class="muted"></p>
+    </div>
+    <div class="topbar__nav">
+      <button id="prev-day" class="icon-btn" title="Día anterior">‹</button>
+      <input type="date" id="date-picker">
+      <button id="next-day" class="icon-btn" title="Día siguiente">›</button>
+    </div>
+  </header>
+
+  <main class="grid">
+
+    <!-- Frase del día -->
+    <section class="card card--quote">
+      <label for="quote-input">Frase del día</label>
+      <textarea id="quote-input" rows="2" placeholder="Escribe algo que quieras recordar hoy..."></textarea>
+    </section>
+
+    <!-- Estado de ánimo -->
+    <section class="card card--mood">
+      <label>¿Cómo te sientes hoy?</label>
+      <div class="mood-selector" id="mood-selector">
+        <button class="mood-option" data-mood="1" title="Muy mal">😞</button>
+        <button class="mood-option" data-mood="2" title="Mal">🙁</button>
+        <button class="mood-option" data-mood="3" title="Normal">😐</button>
+        <button class="mood-option" data-mood="4" title="Bien">🙂</button>
+        <button class="mood-option" data-mood="5" title="Muy bien">😄</button>
+      </div>
+    </section>
+
+    <!-- Tareas del día -->
+    <section class="card card--tasks">
+      <div class="card-header">
+        <h2>Tareas de hoy</h2>
+        <span id="total-minutes" class="pill">0 min</span>
+      </div>
+
+      <form id="task-form" class="task-form">
+        <select id="task-category" required></select>
+        <input type="text" id="task-name" placeholder="Nombre de la tarea" required>
+        <input type="number" id="task-minutes" placeholder="min" min="1" required>
+        <button type="submit" class="btn-primary">Añadir</button>
+      </form>
+
+      <ul id="task-list" class="task-list"></ul>
+
+      <button id="manage-categories-btn" class="link-btn">Gestionar categorías</button>
+    </section>
+
+    <!-- Sueño -->
+    <section class="card card--sleep">
+      <h2>Sueño</h2>
+      <div class="sleep-grid">
+        <label>Hora de dormir
+          <input type="time" id="sleep-time">
+        </label>
+        <label>Hora de despertar
+          <input type="time" id="wake-time">
+        </label>
+      </div>
+      <div class="sleep-grid sleep-grid--phases">
+        <label>Ligero %
+          <input type="number" id="light-pct" min="0" max="100">
+        </label>
+        <label>Profundo %
+          <input type="number" id="deep-pct" min="0" max="100">
+        </label>
+        <label>REM %
+          <input type="number" id="rem-pct" min="0" max="100">
+        </label>
+      </div>
+      <button id="save-sleep-btn" class="btn-secondary">Guardar sueño</button>
+      <p id="sleep-saved-msg" class="muted hidden">Guardado ✓</p>
+    </section>
+
+    <!-- Notas -->
+    <section class="card card--notes">
+      <label for="notes-input">Notas del día</label>
+      <textarea id="notes-input" rows="4" placeholder="Cualquier cosa que quieras anotar hoy..."></textarea>
+    </section>
+
+  </main>
+</div>
+
+<!-- Modal gestión de categorías -->
+<div id="category-modal" class="modal hidden">
+  <div class="modal__content">
+    <div class="modal__header">
+      <h2>Categorías</h2>
+      <button id="close-category-modal" class="icon-btn">✕</button>
+    </div>
+    <ul id="category-list" class="category-list"></ul>
+    <form id="category-form" class="category-form">
+      <input type="text" id="category-name" placeholder="Nueva categoría" required>
+      <input type="color" id="category-color" value="#6C5CE7">
+      <button type="submit" class="btn-primary">Crear</button>
+    </form>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
