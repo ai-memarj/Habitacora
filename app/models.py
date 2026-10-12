@@ -6,11 +6,13 @@ Entidades:
 - Task: una tarea registrada en un día concreto, con categoría, nombre y minutos dedicados
 - SleepLog: registro de sueño de una noche (hora de dormir/despertar y % de fases)
 - DailyEntry: lo "no estructurado" del día -> frase motivacional, estado de ánimo, notas
+- Routine / RoutineItem: calendarios de hábitos (p. ej. "Rutina capilar"),
+  ver el docstring de Routine para el porqué del modelo.
 """
 from datetime import date as date_type
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, Time, Text, ForeignKey, UniqueConstraint
+    Boolean, Column, Integer, String, Float, Date, Time, Text, ForeignKey, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -66,3 +68,42 @@ class DailyEntry(Base):
     notes = Column(Text, nullable=True)         # notas libres del día
 
     __table_args__ = (UniqueConstraint("date", name="uq_daily_entries_date"),)
+
+
+class Routine(Base):
+    """Un calendario de hábito/rutina (p. ej. "Rutina capilar", "No fumar").
+
+    `type` solo cambia cómo se comporta la UI, no el almacenamiento (ambos
+    tipos usan RoutineItem):
+    - "checklist": cada día puede tener varios RoutineItem con su propio
+      `label` (las iniciales tipo "V-M", "F-K" del calendario de ejemplo
+      del usuario), cada uno tachable por separado.
+    - "simple": cada día tiene como mucho un RoutineItem (label=None), y
+      tachar el día entero es tachar ese único item — para calendarios
+      tipo racha donde solo importa "hecho / no hecho" ese día.
+    """
+    __tablename__ = "routines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(120), nullable=False)
+    type = Column(String(20), nullable=False, default="checklist")  # "checklist" | "simple"
+    color = Column(String(20), nullable=True)
+    position = Column(Integer, nullable=False, default=0)  # orden en el listado de rutinas
+
+    items = relationship(
+        "RoutineItem", back_populates="routine", cascade="all, delete-orphan"
+    )
+
+
+class RoutineItem(Base):
+    """Una entrada de una Routine en un día concreto (ver docstring de Routine)."""
+    __tablename__ = "routine_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    routine_id = Column(Integer, ForeignKey("routines.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    label = Column(String(60), nullable=True)  # iniciales/texto corto; None en rutinas "simple"
+    done = Column(Boolean, nullable=False, default=False)
+    position = Column(Integer, nullable=False, default=0)  # orden dentro del día
+
+    routine = relationship("Routine", back_populates="items")

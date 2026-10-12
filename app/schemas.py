@@ -1,6 +1,6 @@
 """Esquemas Pydantic: forma de los datos que entran y salen de la API."""
 from datetime import date, time
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -105,6 +105,49 @@ class DailyEntryOut(BaseModel):
     quote: Optional[str] = None
     mood: Optional[int] = None
     notes: Optional[str] = None
+
+
+# ---------- Routines (calendarios de hábitos) ----------
+class RoutineCreate(BaseModel):
+    name: str
+    type: Literal["checklist", "simple"] = "checklist"
+    color: Optional[str] = None
+
+
+class RoutineUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    position: Optional[int] = None
+
+
+class RoutineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    type: str
+    color: Optional[str] = None
+    position: int
+
+
+class RoutineItemCreate(BaseModel):
+    date: date
+    label: Optional[str] = None
+
+
+class RoutineItemUpdate(BaseModel):
+    label: Optional[str] = None
+    done: Optional[bool] = None
+    position: Optional[int] = None
+
+
+class RoutineItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    routine_id: int
+    date: date
+    label: Optional[str] = None
+    done: bool
+    position: int
 
 
 # ---------- Vista agregada de un día completo ----------

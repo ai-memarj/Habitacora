@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine, SessionLocal
 from app.seed import seed_default_categories
-from app.routers import categories, tasks, sleep, daily, stats
+from app.routers import categories, tasks, sleep, daily, stats, routines
 
 # Crea las tablas si no existen (para el prototipo; en producción se usarían
 # migraciones con Alembic en vez de create_all).
@@ -56,6 +56,7 @@ app.include_router(sleep.router)
 app.include_router(daily.router)
 app.include_router(daily.summary_router)
 app.include_router(stats.router)
+app.include_router(routines.router)
 
 
 @app.get("/health")

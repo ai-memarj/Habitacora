@@ -1,5 +1,15 @@
 import axios from "axios";
-import type { Category, Task, SleepLog, DailyEntry, DaySummary, Streak } from "@/types";
+import type {
+  Category,
+  Task,
+  SleepLog,
+  DailyEntry,
+  DaySummary,
+  Streak,
+  Routine,
+  RoutineType,
+  RoutineItem,
+} from "@/types";
 
 /**
  * Cliente HTTP único hacia la API de FastAPI. La URL base viene de una
@@ -57,5 +67,22 @@ export const dailyApi = {
     api.put<DailyEntry>("/api/daily", data).then((r) => r.data),
 };
 
+// ---------- Rutinas (calendarios de hábitos) ----------
+export const routinesApi = {
+  create: (data: { name: string; type: RoutineType; color?: string | null }) =>
+    api.post<Routine>("/api/routines", data).then((r) => r.data),
+  update: (id: number, data: { name?: string; color?: string | null; position?: number }) =>
+    api.put<Routine>(`/api/routines/${id}`, data).then((r) => r.data),
+  remove: (id: number) => api.delete(`/api/routines/${id}`),
+};
+
+export const routineItemsApi = {
+  create: (routineId: number, data: { date: string; label?: string | null }) =>
+    api.post<RoutineItem>(`/api/routines/${routineId}/items`, data).then((r) => r.data),
+  update: (itemId: number, data: { label?: string | null; done?: boolean; position?: number }) =>
+    api.put<RoutineItem>(`/api/routines/items/${itemId}`, data).then((r) => r.data),
+  remove: (itemId: number) => api.delete(`/api/routines/items/${itemId}`),
+};
+
 // Re-exportados por conveniencia, para quien importe solo desde aquí.
-export type { Category, Task, SleepLog, DailyEntry, DaySummary, Streak };
+export type { Category, Task, SleepLog, DailyEntry, DaySummary, Streak, Routine, RoutineItem };

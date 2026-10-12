@@ -49,3 +49,22 @@ export interface Streak {
   streak: number;
   today_logged: boolean;
 }
+
+export type RoutineType = "checklist" | "simple";
+
+export interface Routine {
+  id: number;
+  name: string;
+  type: RoutineType;
+  color: string | null;
+  position: number;
+}
+
+export interface RoutineItem {
+  id: number;
+  routine_id: number;
+  date: string; // ISO date "YYYY-MM-DD"
+  label: string | null; // iniciales/texto corto; null en rutinas "simple"
+  done: boolean;
+  position: number;
+}

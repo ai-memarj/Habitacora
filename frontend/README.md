@@ -38,18 +38,28 @@ src/
     layout.tsx          # fuentes (Geist + Fraunces), modo oscuro, <Toaster/>
     page.tsx              # dashboard: ensambla todas las tarjetas para un día
     globals.css             # tokens de tema (dark-first) + utilidades .glass/.glass-panel
+    routines/
+      page.tsx                # listado de rutinas + diálogo de creación
+      [id]/page.tsx             # Server Component fino (instant = false) -> RoutineDetailClient
   components/
     ui/                       # componentes shadcn/ui (Button, Card, Dialog, Select, ...)
     layout/
-      navbar.tsx                # barra superior glass, navegación de fecha, racha
+      navbar.tsx                # barra superior glass; date/streak son props OPCIONALES
+      nav-links.tsx               # pestañas "Hoy" / "Rutinas" (usePathname)
     dashboard/
-      task-card.tsx               # formulario + lista de tareas + gráfico de categorías
+      task-card.tsx               # formulario (horas+min) + lista de tareas + gráfico de categorías
       sleep-card.tsx                # formulario de sueño + donut de fases + duración
       reflection-card.tsx            # frase del día (sin selector de ánimo, quitado de la UI)
       category-manager-dialog.tsx     # CRUD de categorías
-  hooks/                              # un hook SWR por recurso (useDaySummary, useCategories, useStreak)
+    routines/
+      routine-form-dialog.tsx          # diálogo "nueva rutina" (nombre/color/tipo)
+      routine-detail-client.tsx         # calendario mensual de una rutina (estado + llamadas API)
+      routine-day-cell.tsx               # una celda: items tachables o día entero tachable
+  hooks/                              # un hook SWR por recurso (useDaySummary, useCategories,
+                                       # useStreak, useRoutines, useRoutine, useRoutineItems)
   lib/
     api.ts                             # instancia de Axios + fetcher SWR + funciones de mutación
+    date.ts                             # TODA la aritmética de fechas (ver nota de zona horaria abajo)
     utils.ts                            # helper cn() (merge de clases Tailwind)
   types/
     index.ts                             # tipos TS reflejando los esquemas Pydantic del backend
@@ -78,6 +88,30 @@ comparan contra la propia prop (`entry?.campo`) en vez de guardar una
 copia en un `ref` (escribir en `ref.current` durante el render también
 está prohibido por el lint, `react-hooks/refs`). Replica este patrón en
 cualquier componente nuevo con el mismo problema.
+
+## Fechas: nunca `toISOString()`
+
+`src/lib/date.ts` centraliza toda la aritmética de fechas del frontend.
+`Date#toISOString()` convierte a UTC antes de formatear, así que en una
+zona horaria con offset positivo (Europe/Madrid) sumar o restar un
+día/mes cerca de medianoche local puede devolver la misma fecha o
+saltarse una entera — esto rompió de verdad la navegación de fecha del
+dashboard diario en su momento. La regla: para obtener un
+"YYYY-MM-DD" o sumar/restar días o meses, usar siempre
+`toISODate`/`todayISO`/`shiftISODate`/`buildMonthGrid`/`addMonths` de
+`src/lib/date.ts` (construidas con los componentes LOCALES del `Date`),
+nunca `toISOString()` ni un `Date` parseado de un string sin hora.
+
+## Rutinas (calendarios de hábitos)
+
+`/routines` lista las rutinas; `/routines/[id]` muestra el calendario
+mensual de una. Dos tipos (ver `CLAUDE.md` para el backend): rutinas
+"checklist" dejan varias iniciales por día, cada una tachable por
+separado (`routine-day-cell.tsx`); rutinas "simple" tachan el día
+entero con un solo click. `routines/[id]/page.tsx` es intencionadamente
+un Server Component casi vacío — ver el comentario dentro del archivo
+sobre `export const instant = false` antes de tocarlo o de copiar el
+patrón a otra ruta dinámica.
 
 ## Modo oscuro
 

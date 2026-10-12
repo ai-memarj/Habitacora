@@ -46,6 +46,7 @@ app/
     sleep.py           # registro de sueño (upsert por día)
     daily.py            # frase/ánimo/notas + resumen agregado del día
     stats.py              # racha de días consecutivos (streak)
+    routines.py            # rutinas tipo calendario + sus items por día
 data/
   habitos.db              # base de datos SQLite (se crea sola, no versionada)
 ```
@@ -88,6 +89,13 @@ detalle del stack y estructura de carpetas.
   solo muestra/edita la frase; ánimo y notas se quitaron de la UI a
   petición del usuario, pero siguen existiendo en el modelo y la API
   (ver `CLAUDE.md`).
+- **Routine** [nuevo]: un calendario de hábito (nombre, color, tipo
+  `"checklist"` o `"simple"`). **RoutineItem**: una entrada de una
+  Routine en una fecha concreta (texto corto opcional + si está
+  tachada/hecha). En rutinas "checklist" puede haber varios
+  RoutineItem por día (cada inicial se tacha por separado); en
+  rutinas "simple" hay como mucho uno por día y tachar el día entero
+  es tachar ese único item. Ver `CLAUDE.md` para el porqué.
 
 ## API
 
@@ -101,6 +109,9 @@ Endpoints principales:
 - `GET /api/daily/{fecha}`, `PUT /api/daily` (upsert por fecha)
 - `GET /api/summary/{fecha}` — vista agregada del día (tareas + sueño + entrada)
 - `GET /api/stats/streak` — racha de días consecutivos con registro
+- `GET/POST /api/routines`, `GET/PUT/DELETE /api/routines/{id}`
+- `GET/POST /api/routines/{id}/items?start=...&end=...` (rango de fechas),
+  `PUT/DELETE /api/routines/items/{item_id}`
 
 ## Roadmap (siguientes iteraciones)
 

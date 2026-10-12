@@ -45,10 +45,78 @@ de rellenar — no añadir fricción con pasos innecesarios.
   prototipo de un solo desarrollador. En cuanto haya datos reales que
   no se puedan perder, introducir Alembic antes de seguir cambiando
   modelos.
+- **`src/lib/date.ts` centraliza TODA la aritmética de fechas del
+  frontend**: no usar `Date#toISOString()` para obtener un
+  "YYYY-MM-DD" en ningún componente nuevo. En cualquier zona horaria
+  con offset positivo (Europe/Madrid, UTC+1/+2) `toISOString()`
+  convierte a UTC antes de formatear, así que sumar/restar un día o
+  mes cerca de medianoche local puede devolver la misma fecha o
+  saltarse una entera — este bug ya rompió la navegación de fecha del
+  dashboard diario (la flecha "siguiente" no avanzaba, "anterior" se
+  saltaba un día) y el cálculo de "hoy". El fix fue dejar de usar
+  `toISOString()` y formatear siempre a mano con los componentes
+  LOCALES del `Date` (`getFullYear`/`getMonth`/`getDate`), que es lo
+  que hacen `toISODate`/`todayISO`/`shiftISODate`/`buildMonthGrid`/
+  `addMonths` en ese fichero.
+- **Rutinas (`Routine`/`RoutineItem`) [nuevo]**: menú separado tipo
+  calendario para hábitos recurrentes (p. ej. "Rutina capilar"), a
+  partir de una captura de calendario real que trajo el usuario
+  (columnas Lunes-Domingo, cada día con iniciales tachables). Dos tipos
+  de rutina en el mismo modelo de almacenamiento (`Routine.type`):
+  `"checklist"` (varias `RoutineItem` por día, cada una con su `label`
+  y tachable por separado — el caso de la captura) y `"simple"` (como
+  mucho un `RoutineItem` por día, sin `label`, para calendarios de racha
+  tipo "no fumar" donde solo se tacha el día entero). Los items se piden
+  por rango de fechas (`GET /api/routines/{id}/items?start=...&end=...`)
+  porque el frontend pinta un mes entero de una vez. No hay endpoint de
+  "marcar racha" especial: en rutinas "simple" el frontend crea el item
+  con `done=true` al primer click y alterna el campo `done` en los
+  siguientes, en vez de borrar/crear cada vez.
 
 ## Estructura
 
 Ver README.md — se mantiene ahí para no duplicar.
+
+## Rutinas (frontend) [nuevo]
+
+- `src/app/routines/page.tsx` — listado de rutinas (tarjetas con color,
+  nombre y tipo), botón "+ Nueva rutina" abre
+  `src/components/routines/routine-form-dialog.tsx` (nombre + color +
+  tipo checklist/simple). Borrar rutina tiene confirmación en dos pasos
+  como el gestor de categorías. **No implementado todavía**: renombrar
+  o recolorear una rutina ya creada (hay que borrarla y recrearla).
+- `src/app/routines/[id]/page.tsx` — Server Component mínimo que
+  resuelve `params` (async) y exporta `instant = false`, delegando toda
+  la UI a `src/components/routines/routine-detail-client.tsx` (Client
+  Component). Esto es obligatorio con `cacheComponents: true`
+  (`next.config.ts`): `instant` solo se puede exportar desde un Server
+  Component, y esta ruta no se puede prerenderizar porque depende del
+  `id` de la rutina. Si se crea otra ruta dinámica (`/algo/[id]`) que
+  sea 100% cliente, replicar este mismo patrón de separación
+  page.tsx (server, fino) + *-client.tsx (el componente real), si no
+  `next build` falla.
+- `src/components/routines/routine-day-cell.tsx` — una celda del
+  calendario. En rutinas "checklist" lista los items del día (click en
+  el texto tacha, icono de aspa al hover borra) más un control "+" que
+  revela un input inline para añadir uno nuevo (Enter añade y deja el
+  input abierto para encadenar altas, Escape/blur lo cierra). En
+  rutinas "simple" toda la celda es un botón: la tachas/destachas entera.
+- `src/lib/date.ts` — además de las utilidades de fecha del dashboard
+  diario, tiene `buildMonthGrid(year, month)` (cuadrícula Lunes-Domingo
+  de 5 o 6 semanas, con relleno del mes anterior/siguiente, igual que
+  Google Calendar) y `addMonths()`. Construida SOLO con el constructor
+  numérico `new Date(year, month, day)` (hora local inequívoca) y
+  `toLocaleDateString()` — nunca con `toISOString()` ni parseando
+  strings de fecha, por el mismo motivo que `shiftISODate` (ver más
+  abajo): evitar el bug de zona horaria ya corregido una vez.
+- `src/components/layout/nav-links.tsx` — pestañas "Hoy" / "Rutinas" en
+  el Navbar (usa `usePathname`). `Navbar` ahora acepta `date` /
+  `onDateChange` / `streak` / `streakLoading` como props OPCIONALES
+  (antes eran obligatorias): sin `date` no pinta ni el día de la semana
+  ni los controles de navegación de fecha, para poder reutilizar el
+  mismo Navbar como cabecera en `/routines` sin esos controles. Si se
+  añade una sección nueva, reutilizar `<Navbar />` (sin esas props) en
+  vez de construir una cabecera distinta.
 
 ## Cosas pendientes mencionadas por el usuario pero NO implementadas aún
 
