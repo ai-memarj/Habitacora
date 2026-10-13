@@ -119,20 +119,20 @@ Endpoints principales:
   días (solo rutinas "checklist"); sustituye los items de cada día
   listado, pensado para pegar un mes entero de golpe
 
-## Roadmap (siguientes iteraciones)
+## Hoja de ruta y bitácora de sesiones
 
-Pantallas reales, Rutinas (calendarios de hábitos) e importación masiva
-ya están construidas — ver `CLAUDE.md` para el detalle de cada una.
-Pendiente, deliberadamente pospuesto (no olvidado):
+Este proyecto se desarrolla compartido entre un entorno en la nube
+(efímero) y un entorno local persistente (Arch Linux + Omarchy). Dos
+documentos en la raíz del repo sostienen esa continuidad:
 
-- Gráficos de tendencia (sueño, minutos por categoría, ánimo) con Recharts.
-- Objetivos a medio/largo plazo vinculados a tareas diarias.
-- Exportar resumen de un periodo a PDF para consulta con el psicólogo.
-- Recordatorio/check-in si no se ha registrado nada a cierta hora.
-- Renombrar/recolorear una rutina ya creada (de momento hay que
-  borrarla y recrearla).
-- Selector de tema claro/oscuro real (ahora mismo fijo en oscuro).
-- Migrar la base de datos a Postgres y desplegar en servidor propio (Oracle Cloud).
+- **`ROADMAP.md`** — qué está hecho, en qué fase está el proyecto
+  (nube → local → servidor propio) y qué queda pendiente a propósito.
+- **`SESSIONS.md`** — qué se hizo en cada sesión de trabajo y qué debe
+  hacer la siguiente al arrancar. Léelo primero al empezar una sesión
+  nueva, sea en la nube o en local.
+
+Para las decisiones de arquitectura (el "por qué" de cómo está hecho
+cada cosa), ver `CLAUDE.md`.
 
 ## Despliegue futuro
 

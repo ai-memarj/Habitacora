@@ -141,16 +141,11 @@ Ver README.md — se mantiene ahí para no duplicar.
   añade una sección nueva, reutilizar `<Navbar />` (sin esas props) en
   vez de construir una cabecera distinta.
 
-## Cosas pendientes mencionadas por el usuario pero NO implementadas aún
+## Qué falta y en qué fase está el proyecto
 
-Están aquí para que quien continúe sepa que se discutieron y se
-decidió posponerlas deliberadamente, no que se olvidaron:
-
-- Gráficos de tendencia (sueño semanal, minutos por categoría, ánimo
-  a lo largo del tiempo).
-- Objetivos a medio/largo plazo vinculados a tareas diarias.
-- Exportar un resumen de periodo a PDF para consulta.
-- Recordatorio/check-in si no se ha registrado nada a cierta hora.
+Ver `ROADMAP.md` — lista única de pendientes (deliberadamente
+pospuestos, no olvidados) y las fases nube → local (Arch Linux +
+Omarchy) → servidor propio. No dupliques esa lista aquí.
 
 ## Estado del frontend (Next.js) [actualizado]
 
@@ -221,64 +216,35 @@ a medio/largo plazo, exportación a PDF.
 
 ## Cómo seguir desde aquí
 
-**El repo ya está clonado en el Windows del usuario (Git Bash), de una
-sesión anterior** — esto NO es un entorno nuevo partiendo de cero. Lo
-primero de la próxima sesión es casi siempre:
+El desarrollo continúa compartido entre dos entornos: este sandbox en
+la nube (efímero, se borra al terminar la sesión — por eso aquí nunca
+se meten datos reales) y el **Arch Linux del usuario, bajo una capa
+Omarchy** (persistente — ahí sí vale la pena meter datos reales en
+`data/habitos.db` en cuanto esté levantado).
 
-1. `git pull` en la carpeta ya clonada (trae Rutinas, importación
-   masiva, y los arreglos de navegación de fecha/formulario de tareas —
-   ver `git log --oneline` para el detalle de cada commit).
-2. Reinstalar dependencias por si han cambiado: `pip install -r
-   requirements.txt` (backend) y `npm install` dentro de `frontend/`
-   (frontend ya tenía `node_modules` y `.env.local` de antes, no hace
-   falta recrearlos salvo que falten).
-3. Arrancar los dos procesos (comandos exactos abajo) y entrar a
-   **`http://localhost:3000`** — NO `:8000`, que es solo la API JSON y
-   da 404 en `/` a propósito. ("No carga nada" casi siempre fue, en la
-   sesión anterior, estar entrando al puerto equivocado.)
-4. **Esta es la primera vez que vale la pena meter datos reales.** El
-   entorno de desarrollo en la nube donde se construyó todo esto hasta
-   ahora es efímero (se borra al terminar la sesión) — por eso no se
-   guardó nada real ahí. En local, `data/habitos.db` si persiste en el
-   disco del usuario.
+Los comandos exactos para arrancar backend y frontend están en
+`README.md` → "Arrancar en local" (son los mismos en la nube, en Arch
+Linux o en cualquier Linux/macOS — no hay nada específico de Omarchy
+más allá de tener Python 3 y Node instalados). Nota sobre
+`--reload-dir app` en el comando de uvicorn: sin él, uvicorn vigila
+todo el repo, incluido `frontend/node_modules`, y se reinicia solo cada
+vez que `npm install` toca algo ahí.
 
-Backend y frontend se arrancan por separado, en dos terminales.
-
-**Backend:**
-1. `python3 -m venv .venv && source .venv/bin/activate` (Windows, Git
-   Bash: `source .venv/Scripts/activate`)
-2. `pip install -r requirements.txt`
-3. `uvicorn app.main:app --reload --reload-dir app --port 8000`
-   **— el `--reload-dir app` importa**: sin él, uvicorn vigila TODO el
-   repo, incluido `frontend/node_modules`, y se reinicia solo cada vez
-   que `npm install` toca algo ahí (visto de verdad en la sesión
-   anterior, con el servidor reiniciándose sin motivo real).
-4. La base de datos y las categorías por defecto se crean solas en
-   `data/habitos.db` la primera vez (no versionado, ver `.gitignore`).
-
-**Frontend:**
-1. `cd frontend && npm install`
-2. `cp .env.local.example .env.local` (si no existe ya de antes)
-3. `npm run dev`
-
-**Verificación tras cambios grandes** (lo que se corrió antes de cada
-commit en las últimas sesiones — repetirlo evita subir algo roto):
+**Verificación tras cambios grandes en el frontend:**
 ```bash
 cd frontend
 npx tsc --noEmit -p tsconfig.json
 npx eslint src
 ```
-`next build` en el entorno de desarrollo en la nube donde se construyó
-esto SIEMPRE falla ahí por no poder llegar a `fonts.googleapis.com` —
-no es un bug real de la app (confirmado funcionando en una máquina con
-internet normal); si hace falta verificarlo de todas formas, hay una
-nota con el procedimiento (quitar temporalmente las Google Fonts de
-`layout.tsx`, compilar, restaurar) en `frontend/README.md`. **En local
-esto no debería pasar** — `next build`/`npm run dev` deberían ir sin
-tocar nada, es solo una limitación de red de ese entorno concreto.
+`next build` falla en este sandbox de la nube por no poder llegar a
+`fonts.googleapis.com` — no es un bug real de la app (confirmado
+funcionando en una máquina con internet normal, incluido Arch Linux).
+Si hace falta verificarlo de todas formas en la nube, hay un
+procedimiento (quitar temporalmente las Google Fonts de `layout.tsx`,
+compilar, restaurar) en `frontend/README.md`. En local esto no debería
+pasar.
 
-Para desplegar en servidor propio: backend con `DATABASE_URL` apuntando
-a la BD de producción, servido por un proceso gestionado (systemd o
-Docker) tras un reverse proxy (nginx), sin `--reload`; frontend
-compilado con `next build` y servido como app Next.js. Añadir el
-dominio real del frontend a `FRONTEND_ORIGINS` en el backend.
+Qué se hizo en cada sesión concreta y qué queda pendiente para la
+siguiente vive en `SESSIONS.md` — léelo primero al empezar una sesión
+nueva. Qué falta implementar en general (no ligado a una sesión
+concreta) vive en `ROADMAP.md`.
