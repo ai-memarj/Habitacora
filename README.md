@@ -65,9 +65,27 @@ uvicorn app.main:app --reload --reload-dir app --port 8000
 El `--reload-dir app` evita que uvicorn vigile todo el repo (incluido
 `frontend/node_modules`, que provoca reinicios espurios cada vez que
 `npm install` toca algo ahí). API en `http://localhost:8000`,
-documentación interactiva en `/docs`. La base de datos y las categorías
-por defecto (Casa, Rutina, Coche, Guitarra, Deporte, Trabajo) se crean
-automáticamente la primera vez.
+documentación interactiva en `/docs`.
+
+La base de datos se crea y se actualiza sola: al arrancar, la app
+ejecuta las migraciones de Alembic pendientes (`alembic upgrade head`),
+así que tras un `git pull` no hay ningún paso manual que recordar. Las
+categorías por defecto (Casa, Rutina, Coche, Guitarra, Deporte,
+Trabajo) se siembran la primera vez.
+
+Si en algún momento hace falta operar las migraciones a mano:
+```bash
+alembic current            # en qué versión está la base de datos
+alembic history            # migraciones existentes
+alembic upgrade head       # aplicar las pendientes
+alembic downgrade -1       # deshacer la última
+alembic revision --autogenerate -m "qué cambia"   # tras tocar app/models.py
+```
+**Importante:** desde que hay datos reales (2026-10-15), cualquier
+cambio en `app/models.py` necesita su migración. Ya no hay
+`create_all()` que cree tablas al vuelo, y aunque lo hubiera, nunca
+alteró las tablas existentes — un campo nuevo se quedaba sin reflejar
+en la base de datos sin que nada avisara.
 
 **Frontend (interfaz):**
 ```bash

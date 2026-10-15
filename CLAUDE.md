@@ -41,10 +41,28 @@ de rellenar — no añadir fricción con pasos innecesarios.
   vacía (`app/seed.py`), pero el usuario puede crear/renombrar/recolorear
   o borrar (si no tienen tareas asociadas) desde la propia UI. No
   hardcodear la lista de categorías en ningún otro sitio del código.
-- **`create_all()` en vez de migraciones**: válido mientras es
-  prototipo de un solo desarrollador. En cuanto haya datos reales que
-  no se puedan perder, introducir Alembic antes de seguir cambiando
-  modelos.
+- **Alembic, no `create_all()`** [actualizado 2026-10-15]: la condición
+  que marcaba este cambio ("en cuanto haya datos reales que no se puedan
+  perder") se cumplió el 2026-10-15, con el registro diario real ya
+  empezado en `data/habitos.db`. `app/main.py` ya NO llama a
+  `Base.metadata.create_all()`: ejecuta `alembic upgrade head` al
+  arrancar (`_run_migrations()`). El motivo de automatizarlo en vez de
+  dejarlo como paso manual es que esto es una app personal de un solo
+  desarrollador y olvidar `alembic upgrade head` tras un `git pull` es
+  el fallo más probable; es idempotente, así que con `--reload` no
+  molesta. En Fase 3 conviene hacerlo explícito en el despliegue y
+  quitarlo del arranque.
+  - `migrations/env.py` lee la URL de `app.database.DATABASE_URL`, NO de
+    `alembic.ini`, para que migrar a Postgres en Fase 3 sea cambiar una
+    sola variable de entorno y no acordarse de dos sitios.
+  - `render_as_batch=True` es obligatorio mientras el motor sea SQLite:
+    SQLite no soporta `ALTER`/`DROP COLUMN` y Alembic necesita el truco
+    de tabla temporal + copia.
+  - La migración `199b38d4d4cf` es el baseline (el esquema tal como
+    estaba el 2026-10-15). La base de datos que ya existía se sembró con
+    `alembic stamp`, no recreándola. Si tocas `app/models.py`, genera su
+    migración (`alembic revision --autogenerate`) ANTES de arrancar la
+    app, o la app arrancará contra un esquema que no coincide.
 - **`src/lib/date.ts` centraliza TODA la aritmética de fechas del
   frontend**: no usar `Date#toISOString()` para obtener un
   "YYYY-MM-DD" en ningún componente nuevo. En cualquier zona horaria
@@ -58,88 +76,176 @@ de rellenar — no añadir fricción con pasos innecesarios.
   LOCALES del `Date` (`getFullYear`/`getMonth`/`getDate`), que es lo
   que hacen `toISODate`/`todayISO`/`shiftISODate`/`buildMonthGrid`/
   `addMonths` en ese fichero.
-- **Rutinas (`Routine`/`RoutineItem`) [nuevo]**: menú separado tipo
-  calendario para hábitos recurrentes (p. ej. "Rutina capilar"), a
-  partir de una captura de calendario real que trajo el usuario
-  (columnas Lunes-Domingo, cada día con iniciales tachables). Dos tipos
-  de rutina en el mismo modelo de almacenamiento (`Routine.type`):
-  `"checklist"` (varias `RoutineItem` por día, cada una con su `label`
-  y tachable por separado — el caso de la captura) y `"simple"` (como
-  mucho un `RoutineItem` por día, sin `label`, para calendarios de racha
-  tipo "no fumar" donde solo se tacha el día entero). Los items se piden
-  por rango de fechas (`GET /api/routines/{id}/items?start=...&end=...`)
-  porque el frontend pinta un mes entero de una vez. No hay endpoint de
-  "marcar racha" especial: en rutinas "simple" el frontend crea el item
-  con `done=true` al primer click y alterna el campo `done` en los
-  siguientes, en vez de borrar/crear cada vez.
-- **Importación masiva de rutinas (`PUT /api/routines/{id}/items/bulk`)
-  [nuevo]**: a petición del usuario, para no tener que escribir cada
-  inicial a mano día a día en la UI. Solo rutinas `"checklist"` (400 si
-  se llama en una `"simple"` — ahí no tiene sentido, es un solo check).
-  Payload `{"days": [{"date", "labels": [...]}]}`: por cada día de la
-  lista, BORRA todos sus `RoutineItem` existentes y los reemplaza por
-  `labels` (pierde el estado `done` que tuvieran — es "fijar el plan de
-  ese mes", no un merge). Un día que no aparece en `days` no se toca,
-  así que se puede pegar solo una parte del mes. Pensado para pegarse
-  de una sentada, no para ejecutarse repetidamente con solapes parciales.
+- **Rutinas: una sola estructura, sin tipos** [reescrito 2026-10-15]:
+  menú tipo calendario para hábitos recurrentes. Antes `Routine.type`
+  obligaba a elegir entre `"checklist"` y `"simple"` AL CREAR la rutina,
+  que es justo cuando menos claro se tiene qué forma va a tener — el
+  usuario lo describió como "mi problema para englobar todo tipo de
+  rutinas en una pantalla". Ese campo ya no existe. Una rutina es:
+
+      nombre + color
+      + vocabulario (`RoutineActivity`: nombre, iniciales, color, cupo)
+      + patrón      (`cycle_length`/`cycle_start` + `RoutineCycleSlot`)
+      + meta        (`goal_days`)
+
+  Las tres formas que aparecen en la práctica son esa misma estructura
+  rellenada a distintos niveles, y **el modo se DEDUCE** en el frontend
+  (`routineMode()` en `src/lib/routine-cycle.ts`), no se almacena:
+  - *Pauta* (rutina capilar): vocabulario + ciclo. El ciclo dice qué
+    toca cada día; el calendario existe para saber qué te toca.
+  - *Cupo* (entrenos de la semana): + `quota` en las actividades. El
+    ciclo PROPONE un reparto y los cupos se verifican por repetición del
+    ciclo; el calendario existe para repartir carga.
+  - *Reto* ("30 días sin fumar"): una actividad, ciclo de 1 día y
+    `goal_days`. El calendario existe para ver el bloque sin huecos.
+
+  Si añades un comportamiento nuevo, la pregunta correcta es "¿de qué
+  campo se deduce?", no "¿qué tipo nuevo hace falta?".
+
+- **Los cupos se cuentan por repetición del ciclo, no por semana
+  natural** [nuevo]: si el plan decía boxeo el martes y lo hiciste el
+  miércoles, has cumplido — evaluar por día pintaría un hueco el martes
+  y un extra el miércoles, dos errores donde no hubo ninguno. Contar por
+  ventana de ciclo además evita que un ciclo de 4 días tenga que
+  inventarse dónde empieza "la semana". Con un ciclo de 7 días anclado a
+  un lunes la ventana coincide con la semana natural, y entonces
+  `cycleAlignsWithWeeks()` es `true` y el resumen se pinta como columna
+  extra al final de cada fila del calendario; si no, va en una tira
+  debajo.
+
+- **Un ciclo de 7 días anclado a un lunes ES una plantilla semanal**
+  [nuevo]: se valoró tener los dos conceptos (plantilla semanal y ciclo
+  de N días) y se descartó — el ciclo de N días con ancla los generaliza.
+  El editor nombra las columnas con los días de la semana cuando
+  `cycle_length === 7` y hay ancla, para que se lea como lo que es.
+
+- **El patrón se ESTAMPA, no se pinta al vuelo** [nuevo]: definir el
+  ciclo no cambia el calendario; hay que proyectarlo sobre un mes
+  ("Estampar"), lo que crea `RoutineItem` reales. Cuesta un botón más,
+  pero permite editar un mes concreto sin tocar el patrón (una semana de
+  vacaciones, un mes con lesión) y, sobre todo, **cambiar el ciclo no
+  reescribe el pasado**: el historial sigue diciendo lo que de verdad
+  tocaba entonces. El estampado NO tiene endpoint propio: el cliente
+  genera los días (`buildStampDays()`) y los manda al pegado masivo que
+  ya existía, coherente con "backend como API pura".
+
+- **Estampar no pisa los días que ya tienen algo** [nuevo]: el pegado
+  masivo sustituye el día entero, así que estampar encima borraría
+  tachones ya hechos. El diálogo excluye por defecto los días ocupados y
+  ofrece una casilla para sustituirlos explícitamente. Mismo criterio de
+  "no destructivo por omisión" que la importación de días desde Markdown.
+
+- **El reto necesita tres estados, y salen sin columnas nuevas**
+  [nuevo]: sin item = sin registrar, `done=True` = cumplido,
+  `done=False` = **roto explícitamente**. Sin esa distinción la racha
+  tendría que adivinar si un hueco es un fallo o un día que simplemente
+  no se registró. La celda cicla entre los tres al hacer clic.
+
+- **`RoutineActivity` sustituye al `label` de texto libre** [nuevo]: con
+  texto libre, `"Boxeo"`, `"boxeo"` y `"box"` eran tres cosas distintas
+  para la base de datos — imposible contar cupos, colorear por tipo o
+  agrupar, y cualquier falta de ortografía partía los datos en silencio.
+  `RoutineItem.label` se mantiene para items sueltos y por
+  compatibilidad; la migración `aec409623a69` convierte los labels
+  existentes de cada rutina en actividades. Borrar una actividad con
+  días registrados se rechaza (400), **misma regla que las categorías
+  con tareas** — borrarla se llevaría historial real por delante; los
+  slots del ciclo sí caen en cascada, porque son plan y no registro.
+
+- **Sin jerarquía de actividades** [decisión explícita]: el usuario
+  describió "2 de acondicionamiento (uno carrera continua, otro
+  intervalos)", que sugeriría agrupar actividades. Se descartó: con cupo
+  1 a carrera y cupo 1 a intervalos se obtiene la misma restricción y
+  MÁS información (`Carrera 1/1 · Intervalos 0/1` dice cuál falta, donde
+  `Acond 1/2` no). Solo haría falta para "2 de acondicionamiento, me da
+  igual cuáles" — anotado en `to_attend.md`.
 
 ## Estructura
 
 Ver README.md — se mantiene ahí para no duplicar.
 
-## Rutinas (frontend) [nuevo]
+## Rutinas (frontend) [reescrito 2026-10-15]
 
-- `src/app/routines/page.tsx` — listado de rutinas (tarjetas con color,
-  nombre y tipo), botón "+ Nueva rutina" abre
-  `src/components/routines/routine-form-dialog.tsx` (nombre + color +
-  tipo checklist/simple). Borrar rutina tiene confirmación en dos pasos
-  como el gestor de categorías. **No implementado todavía**: renombrar
-  o recolorear una rutina ya creada (hay que borrarla y recrearla).
-- `src/app/routines/[id]/page.tsx` — Server Component mínimo que
-  resuelve `params` (async) y exporta `instant = false`, delegando toda
-  la UI a `src/components/routines/routine-detail-client.tsx` (Client
-  Component). Esto es obligatorio con `cacheComponents: true`
-  (`next.config.ts`): `instant` solo se puede exportar desde un Server
-  Component, y esta ruta no se puede prerenderizar porque depende del
-  `id` de la rutina. Si se crea otra ruta dinámica (`/algo/[id]`) que
-  sea 100% cliente, replicar este mismo patrón de separación
-  page.tsx (server, fino) + *-client.tsx (el componente real), si no
+**Todo el diseño de una rutina se hace desde la pantalla de la rutina**,
+no sembrando la base de datos ni en diálogos aparte. Fue un requisito
+explícito del usuario, y es también lo que hace viable que no haya
+tipos: se rellena lo que haga falta ahí y la rutina toma su forma.
+
+- `src/lib/routine-cycle.ts` — **toda** la lógica de ciclos, cupos y
+  rachas, en funciones puras: `routineMode()`, `cycleDayIndex()`,
+  `cycleWindowIndex()`/`cycleWindow()`/`cycleWindowsInRange()`,
+  `cycleAlignsWithWeeks()`, `quotaTally()`, `cycleBalance()`,
+  `buildStampDays()`, `streakInfo()`. Separado de los componentes por el
+  mismo motivo que `day-import-md.ts`: aquí vive lo más fácil de
+  equivocar (módulos de números negativos para fechas anteriores al
+  ancla, ventanas de ciclo, aritmética cruzando el cambio de hora).
+  **Probado**: `cd frontend && npx tsx scripts/test-routine-cycle.ts`
+  (33 asserciones, incluido el DST del 25-oct). Si tocas este fichero,
+  pasa ese script — no hay runner de tests configurado, se ejecuta a
+  mano.
+- `src/components/routines/routine-config-panel.tsx` — el panel
+  plegable (botón "Configurar") que contiene vocabulario + patrón, en la
+  MISMA pantalla que el calendario. Plegado muestra una línea con la
+  forma (`routineShapeLabel()`). Deliberadamente no es un diálogo ni otra
+  ruta: una rutina se diseña mirando su calendario, y tachar (lo que se
+  hace el 95% de las veces) debe seguir siendo un clic sin capas.
+- `routine-activities-panel.tsx` — el vocabulario. Las iniciales se
+  autocompletan desde el nombre ("Carrera continua" → "CAR") hasta que
+  el usuario las edita a mano. **Cupo vacío = `null`, no `0`**: son
+  cosas distintas ("no cuenta para el reparto" frente a "hazlo cero
+  veces"). El `maxLength` del cupo se recorta en el `onChange` porque no
+  funciona en `<input type="number">` (ver más abajo).
+- `routine-cycle-editor.tsx` — N días + ancla + meta, con las
+  actividades colocables en cada día del ciclo. Lo importante es la
+  línea de validación: `cycleBalance()` compara lo colocado con los
+  cupos y dice "✓ cuadra — 9 de 9 repartidas" o "falta 1 BOX, sobra 1
+  MOV". Eso es lo que resuelve el "repartir" del usuario sin que tenga
+  que llevar la cuenta en la cabeza. Estampar está deshabilitado
+  mientras el patrón tenga cambios sin guardar.
+- `routine-stamp-dialog.tsx` — proyecta el patrón sobre el mes natural
+  (no sobre la cuadrícula completa: estampar días de relleno del mes
+  anterior sorprendería a quien pide "rellena octubre"). Excluye por
+  defecto los días que ya tienen algo.
+- `routine-cycle-summary.tsx` — lo hecho frente al cupo de una ventana.
+  Hacer de más no se regaña: muestra `2/2 ✓ (+1)`.
+- `routine-header-summary.tsx` — **una sola cabecera** que muestra lo
+  que aplique según el modo deducido (progreso+racha / ciclo actual /
+  días del mes cumplidos). No hay tres cabeceras.
+- `routine-day-cell.tsx` — en pauta/cupo lista los items del día con el
+  color de su actividad y un "+" que despliega el vocabulario para
+  elegir (ya no se escribe texto; si la rutina aún no tiene vocabulario
+  sí se permite texto suelto, para no bloquear). Si el día está vacío
+  pero el patrón dice que toca algo, se pinta esa pista en punteado y
+  clicarla la registra. En reto, la celda entera cicla por los tres
+  estados.
+- `routine-detail-client.tsx` — la pantalla. Las celdas de una fila van
+  como hijas directas del mismo `grid` (una fila no puede ser un `<div>`
+  envolvente, rompería la cuadrícula): se agrupan en un fragmento. Si
+  `cycleAlignsWithWeeks()`, la cuadrícula pasa a 8 columnas y el
+  resumen de cada ventana va al final de su fila.
+- `src/app/routines/page.tsx` — el badge del listado sale de
+  `routineMode()`, y debajo la forma (`routineShapeLabel()`). **No se
+  muestra progreso por tarjeta a propósito**: haría falta una petición
+  de items por rutina. Crear una rutina lleva directo a su pantalla
+  (`router.push`), porque lo siguiente que hay que hacer siempre es
+  configurarla.
+- `src/app/routines/[id]/page.tsx` — sin cambios: Server Component
+  mínimo que resuelve `params` y exporta `instant = false`, delegando en
+  el Client Component. Obligatorio con `cacheComponents: true` — si se
+  crea otra ruta dinámica 100% cliente, replicar este patrón o
   `next build` falla.
-- `src/components/routines/routine-day-cell.tsx` — una celda del
-  calendario. En rutinas "checklist" lista los items del día (click en
-  el texto tacha, icono de aspa al hover borra) más un control "+" que
-  revela un input inline para añadir uno nuevo (Enter añade y deja el
-  input abierto para encadenar altas, Escape/blur lo cierra). En
-  rutinas "simple" toda la celda es un botón: la tachas/destachas entera.
-- `src/lib/date.ts` — además de las utilidades de fecha del dashboard
-  diario, tiene `buildMonthGrid(year, month)` (cuadrícula Lunes-Domingo
-  de 5 o 6 semanas, con relleno del mes anterior/siguiente, igual que
-  Google Calendar), `addMonths()`, `daysInMonth()` e `isoFromYMD()`.
-  Construida SOLO con el constructor numérico `new Date(year, month,
-  day)` (hora local inequívoca) y `toLocaleDateString()` — nunca con
-  `toISOString()` ni parseando strings de fecha, por el mismo motivo
-  que `shiftISODate`: evitar el bug de zona horaria ya corregido una
-  vez (ver la entrada de arquitectura más arriba).
-- `src/lib/routine-bulk-text.ts` + `routine-import-dialog.tsx`
-  [nuevo] — importación masiva por mes: botón "Importar" junto al
-  navegador de mes (solo en rutinas "checklist"), abre un diálogo con
-  un textarea precargado con lo que ya hay ese mes (`formatRoutineBulkText`)
-  en formato `"<día>. <inicial1>, <inicial2>"` (una línea por día,
-  número = día del mes, no orden de las líneas). Al guardar,
-  `parseRoutineBulkText` separa días válidos de líneas con problemas
-  (día fuera de rango, línea irreconocible, día repetido en el texto —
-  se queda con la última) y solo bloquea el envío si NINGÚN día se
-  reconoció; los errores se muestran pero no impiden importar los días
-  que sí se entendieron. Llama a `routineItemsApi.bulkSet()` →
-  `PUT /api/routines/{id}/items/bulk`.
-- `src/components/layout/nav-links.tsx` — pestañas "Hoy" / "Rutinas" en
-  el Navbar (usa `usePathname`). `Navbar` ahora acepta `date` /
-  `onDateChange` / `streak` / `streakLoading` como props OPCIONALES
-  (antes eran obligatorias): sin `date` no pinta ni el día de la semana
-  ni los controles de navegación de fecha, para poder reutilizar el
-  mismo Navbar como cabecera en `/routines` sin esos controles. Si se
-  añade una sección nueva, reutilizar `<Navbar />` (sin esas props) en
-  vez de construir una cabecera distinta.
+- `src/lib/routine-bulk-text.ts` — el pegado por texto ahora resuelve
+  los nombres contra el vocabulario (acepta iniciales o nombre completo,
+  sin distinguir mayúsculas ni acentos). Un nombre que no está en el
+  vocabulario **no crea una actividad nueva**: se avisa y el día importa
+  con lo que sí se reconoció, igual de permisivo que antes.
+- `src/lib/date.ts` — sin cambios. Sigue siendo el único sitio con
+  aritmética de fechas; `routine-cycle.ts` la usa, nunca `toISOString()`.
+- **No implementado**: renombrar/recolorear una rutina ya creada (sigue
+  pendiente desde antes), y arrastrar items entre días. Lo segundo tiene
+  el backend listo (`PUT /api/routines/items/{id}` acepta `date`, probado
+  con curl) pero no hay UI de arrastre — el resumen de cupo ya hace
+  visible lo que falta sin ella. Ambos en `ROADMAP.md`.
 
 ## Qué falta y en qué fase está el proyecto
 

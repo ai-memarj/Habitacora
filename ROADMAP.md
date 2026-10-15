@@ -40,7 +40,13 @@ sitio donde se mantiene la lista de pendientes — no la dupliques en
 - Exportar un resumen de periodo a PDF para consulta con el psicólogo.
 - Recordatorio/check-in si no se ha registrado nada a cierta hora.
 - Renombrar/recolorear una rutina ya creada (ahora hay que borrarla y
-  recrearla).
+  recrearla). El backend ya lo soporta (`PUT /api/routines/{id}`), falta
+  la UI.
+- Arrastrar un item de rutina de un día a otro dentro del mismo ciclo
+  (reparto manual de los cupos). El backend ya lo soporta (`PUT
+  /api/routines/items/{id}` acepta `date`), falta la UI de arrastre.
+- Agrupar actividades de rutina ("2 de acondicionamiento, me da igual
+  cuáles"), ver `to_attend.md`.
 - Selector de tema claro/oscuro real (`next-themes`); ahora mismo fijo
   en oscuro.
 - Migrar la base de datos a Postgres y desplegar en servidor propio
@@ -55,10 +61,16 @@ sitio donde se mantiene la lista de pendientes — no la dupliques en
   `CLAUDE.md`.)
 - Categorías editables desde la propia UI.
 - Racha de días consecutivos con registro.
-- Rutinas: calendarios tipo "checklist" (varias iniciales por día,
-  tachables por separado) o "simple" (racha, se tacha el día entero de
-  una vez).
-- Importación masiva de rutinas pegando texto plano, mes a mes.
+- Rutinas v2 (2026-10-15): una sola estructura sin tipos (vocabulario de
+  actividades + ciclo de N días + cupos + meta), con el modo —pauta,
+  cupo o reto— deducido de lo que se configure. Todo el diseño se hace
+  desde la propia pantalla de la rutina: editor de vocabulario, editor
+  de patrón con validación del reparto ("✓ cuadra — 9 de 9"), estampado
+  del patrón sobre un mes, resumen de cupos por ciclo y tri-estado en
+  los retos.
+- Importación masiva de rutinas pegando texto plano, mes a mes (ahora
+  resuelve los nombres contra el vocabulario de la rutina).
+- Alembic: migraciones de base de datos, aplicadas al arrancar.
 - Arreglo del bug de zona horaria en la navegación de fechas
   (`toISOString()` → aritmética local centralizada en
   `frontend/src/lib/date.ts`).

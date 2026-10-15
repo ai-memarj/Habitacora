@@ -101,20 +101,50 @@ _(vacío por ahora)_
 
 ## Mejora
 
-### `Routine.color` no valida formato hex (a diferencia de `Category.color`)
-- **Qué pasa:** en la sesión de automejora de "Hoy" (2026-10-13) se
-  añadió validación de color hex (`#RRGGBB`) a `CategoryCreate`/
-  `CategoryUpdate` en `app/schemas.py`. `RoutineCreate`/`RoutineUpdate`
-  tienen el mismo campo `color` con el mismo riesgo (un valor inválido
-  se propaga silenciosamente a la UI de Rutinas) pero no se tocaron,
-  porque esa ronda era específicamente sobre la pantalla "Hoy".
-- **Disparador:** Evento — la próxima vez que se trabaje sobre Rutinas
-  (backend o frontend), aplicar el mismo `_validate_hex_color` /
-  `HEX_COLOR_RE` ya definido en `app/schemas.py` a esos dos esquemas.
-- **Detectado:** 2026-10-13, sesión de automejora de "Hoy", ronda 2.
+### Agrupar actividades de rutina ("2 de acondicionamiento, me da igual cuáles")
+- **Qué pasa:** los cupos de Rutinas v2 son por actividad concreta. El
+  usuario describió su semana de entrenos como "2 de acondicionamiento
+  (uno carrera continua, otro intervalos)", que sugeriría poder agrupar
+  varias actividades bajo un cupo común.
+- **Por qué no se hizo:** con cupo 1 a carrera y cupo 1 a intervalos se
+  obtiene la misma restricción y más información (`Carrera 1/1 ·
+  Intervalos 0/1` dice cuál falta, `Acond 1/2` no). Añadir jerarquía
+  (`parent_id` en `RoutineActivity`) por un caso que ya está cubierto
+  sería complejidad sin beneficio.
+- **Cuándo sí haría falta:** si aparece un cupo donde de verdad da igual
+  qué variante se haga ("3 sesiones de cardio, cualesquiera").
+- **Disparador:** Evento — cuando el usuario quiera un cupo
+  deliberadamente ambiguo entre variantes y le moleste tener que
+  repartirlo a mano.
+- **Detectado:** 2026-10-15, sesión de diseño de Rutinas v2.
+
+### Sin runner de tests, pero ya hay lógica que lo pide
+- **Qué pasa:** `frontend/src/lib/` acumula lógica pura no trivial
+  (`routine-cycle.ts`, `day-import-md.ts`, `routine-bulk-text.ts`). La
+  primera tiene pruebas (`frontend/scripts/test-routine-cycle.ts`, 33
+  asserciones) pero hay que acordarse de ejecutarlas a mano con
+  `npx tsx`; las otras dos se probaron en su momento con `node` y no
+  dejaron pruebas guardadas.
+- **Por qué no es urgente:** son funciones puras y el proyecto tiene un
+  solo desarrollador; el coste de un fallo es bajo y se detecta usando
+  la app.
+- **Opciones:** Vitest (encaja con Next/TS sin configuración apenas) y
+  un script `npm test` que corra también los `scripts/test-*.ts`.
+- **Disparador:** Evento — la próxima vez que haya que tocar
+  `routine-cycle.ts` o los parsers por un bug real (ahí ya compensa
+  convertir el script en tests de verdad). A más tardar, Fase — antes de
+  Fase 3.
+- **Detectado:** 2026-10-15, sesión de diseño de Rutinas v2.
 
 ---
 
 ## Resuelto / ya no aplica
 
-_(vacío por ahora)_
+### `Routine.color` no valida formato hex (a diferencia de `Category.color`)
+- **Detectado:** 2026-10-13 (automejora de "Hoy", ronda 2). Su
+  disparador era "la próxima vez que se trabaje sobre Rutinas".
+- **Resuelto:** 2026-10-15, en la sesión de Rutinas v2. `RoutineCreate`/
+  `RoutineUpdate` y los nuevos `RoutineActivityCreate`/
+  `RoutineActivityUpdate` validan hex de 6 dígitos con el mismo
+  `_validate_hex_color`/`HEX_COLOR_RE` que las categorías. Probado con
+  curl: un color `"rojo"` devuelve 422.

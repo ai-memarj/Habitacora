@@ -17,6 +17,72 @@ arrancar.
 
 ---
 
+## Sesión — 2026-10-15 — Local (Arch Linux + Omarchy)
+
+**Hecho:**
+- Commiteado todo el trabajo pendiente de la sesión anterior, que estaba
+  sin versionar (automejora de "Hoy" + importación desde Markdown), en
+  tres commits: validaciones de backend, frontend, documentación.
+  Configurada la identidad de git en el repo (no había ninguna en este
+  Arch; los commits anteriores se hicieron en la nube).
+- **Sesión de investigación**: repaso de las apps punteras del mismo
+  nicho (Bearable, Daylio, Exist.io, Whoop Journal, Finch, eMoods,
+  Sunsama, Year-in-Pixels, tendencia local-first/AI de 2026) y diez
+  propuestas de implementación priorizadas. El usuario no eligió
+  ninguna: redirigió la sesión al rediseño de Rutinas. **Las diez ideas
+  no están guardadas en el repo** — si se quieren recuperar, están en el
+  historial de esta conversación; las que sobrevivieron como pendientes
+  reales ya estaban en `ROADMAP.md`.
+- **Sesión de diseño de Rutinas**, a partir de las lagunas que planteó el
+  usuario (una pauta rotatoria tipo rutina capilar, un reparto semanal de
+  entrenos, y un reto tipo "30 días sin fumar", todo desde una sola
+  pantalla). Decisiones tomadas por el usuario: cupo flexible evaluado
+  por ciclo, patrón como ciclo de N días (que generaliza la plantilla
+  semanal), y migrar los labels existentes a actividades. El "por qué" de
+  cada decisión está en `CLAUDE.md`.
+- **Rutinas v2 implementada completa** (pasos 0 a 4 del plan acordado):
+  - **Alembic** sustituye a `create_all()`. Baseline del esquema
+    existente + `alembic stamp` sobre `data/habitos.db` (sin recrearla),
+    migración v2 con conversión de labels→actividades, y
+    `alembic upgrade head` automático al arrancar la app. Round-trip
+    `upgrade`/`downgrade` probado sobre una copia con datos falsos.
+  - Backend: `RoutineActivity` (vocabulario, con `quota`),
+    `RoutineCycleSlot` (el patrón), `cycle_length`/`cycle_start`/
+    `goal_days` en `Routine`, `activity_id` en `RoutineItem`, y fuera
+    `Routine.type`. Endpoints de actividades y de ciclo; el bulk acepta
+    `activity_ids`; los items se pueden mover de día.
+  - Frontend: `lib/routine-cycle.ts` con toda la lógica pura (+ 33
+    asserciones en `scripts/test-routine-cycle.ts`), panel de
+    configuración plegable en la propia pantalla de la rutina
+    (vocabulario + editor de patrón con validación "✓ cuadra"),
+    estampado sobre un mes, resumen de cupos por ciclo, cabecera
+    deducida y tri-estado en los retos.
+- Verificado: `npx tsc --noEmit`, `npx eslint src scripts`,
+  **`next build`** y el script de pruebas, todo en limpio. Las tres
+  formas de rutina probadas de extremo a extremo por API (incluida la
+  rotación de un ciclo de 4 días y la protección del estampado), y
+  **los datos de prueba borrados después** — `data/habitos.db` se queda
+  solo con los datos reales del usuario.
+- Copia de seguridad de la base de datos antes de migrar, en el
+  scratchpad de la sesión (efímero: si hace falta conservarla, copiarla
+  a otro sitio).
+
+**Para la próxima sesión:**
+- **Lo primero: usar Rutinas de verdad.** Está implementada y verificada
+  por API y por compilación, pero **nadie la ha usado todavía en el
+  navegador** — la extensión de Chrome no estaba conectada en esta
+  sesión, así que no hubo verificación visual. Crear las tres rutinas
+  reales (capilar, entrenos, no fumar) desde la UI es a la vez la prueba
+  que falta y datos reales.
+- Pendiente de UI (backend ya listo): renombrar/recolorear una rutina, y
+  arrastrar items entre días. Ver `ROADMAP.md`.
+- Fase 2 sigue sin cerrar: faltan datos reales sostenidos (el registro
+  diario ya empezó el 2026-10-15, con tareas, sueño y frase).
+- Recordar que `app/models.py` ya no perdona: cualquier cambio necesita
+  su migración de Alembic (ver `README.md`).
+
+---
+
 ## Sesión — 2026-10-13 — Local (Arch Linux + Omarchy)
 
 **Hecho:**
