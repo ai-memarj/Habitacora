@@ -1,8 +1,17 @@
 """Esquemas Pydantic: forma de los datos que entran y salen de la API."""
+import re
 from datetime import date, time
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def _validate_hex_color(v: Optional[str]) -> Optional[str]:
+    if v is not None and not HEX_COLOR_RE.match(v):
+        raise ValueError("El color debe ser un hex de 6 dígitos, p. ej. '#6C5CE7'")
+    return v
 
 
 # ---------- Category ----------
@@ -10,10 +19,20 @@ class CategoryCreate(BaseModel):
     name: str
     color: Optional[str] = None
 
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
+
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
+
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
 
 
 class CategoryOut(BaseModel):
@@ -21,6 +40,17 @@ class CategoryOut(BaseModel):
     id: int
     name: str
     color: Optional[str] = None
+
+
+MINUTES_PER_DAY = 24 * 60
+
+
+def _validate_task_minutes(v: int) -> int:
+    if v <= 0:
+        raise ValueError("Los minutos dedicados deben ser mayores que 0")
+    if v > MINUTES_PER_DAY:
+        raise ValueError("Una sola tarea no puede durar más de 24 horas")
+    return v
 
 
 # ---------- Task ----------
@@ -33,9 +63,7 @@ class TaskCreate(BaseModel):
     @field_validator("minutes")
     @classmethod
     def minutes_positive(cls, v):
-        if v <= 0:
-            raise ValueError("Los minutos dedicados deben ser mayores que 0")
-        return v
+        return _validate_task_minutes(v)
 
 
 class TaskUpdate(BaseModel):
@@ -43,6 +71,13 @@ class TaskUpdate(BaseModel):
     minutes: Optional[int] = None
     category_id: Optional[int] = None
     date: Optional[date] = None
+
+    @field_validator("minutes")
+    @classmethod
+    def minutes_positive(cls, v):
+        if v is None:
+            return v
+        return _validate_task_minutes(v)
 
 
 class TaskOut(BaseModel):
