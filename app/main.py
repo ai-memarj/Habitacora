@@ -12,16 +12,40 @@ El frontend (Next.js) se arranca por separado, ver /frontend/README.md.
 """
 import os
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine, SessionLocal
+from app.database import SessionLocal
 from app.seed import seed_default_categories
 from app.routers import categories, tasks, sleep, daily, stats, routines
 
-# Crea las tablas si no existen (para el prototipo; en producción se usarían
-# migraciones con Alembic en vez de create_all).
-Base.metadata.create_all(bind=engine)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _run_migrations() -> None:
+    """Lleva la base de datos a la última migración al arrancar.
+
+    Sustituye al `Base.metadata.create_all()` que había aquí: en cuanto
+    hubo datos reales que no se pueden perder (2026-10-15), `create_all`
+    dejó de ser suficiente — crea tablas nuevas pero NO altera las que ya
+    existen, así que un campo añadido a un modelo se quedaba sin reflejar
+    en la base de datos sin que nada avisara.
+
+    Se ejecuta automáticamente en vez de dejarlo como paso manual porque
+    esto es una app personal de un solo desarrollador y olvidarse de
+    `alembic upgrade head` tras un `git pull` es el fallo más probable.
+    Es idempotente, así que con `--reload` no molesta. En Fase 3
+    (servidor propio) conviene hacerlo explícito en el despliegue y
+    quitarlo de aquí, para no migrar en caliente al reiniciar.
+    """
+    cfg = Config(os.path.join(BASE_DIR, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(BASE_DIR, "migrations"))
+    command.upgrade(cfg, "head")
+
+
+_run_migrations()
 
 # Siembra las categorías por defecto una sola vez.
 _db = SessionLocal()
