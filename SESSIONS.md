@@ -103,7 +103,28 @@ arrancar.
     `CLAUDE.md`.
   - `.playwright-mcp/` añadido a `.gitignore`.
 
+- **Auditoría UI/UX completa** de Hoy y Rutinas (1440x900 y 390x844),
+  con Playwright y medidas del DOM en vez de impresiones. Diagnóstico:
+  la app tiene el vocabulario de un producto premium pero no sus
+  escalas. Hallazgos medidos: 0 elementos con `tabular-nums` en Hoy;
+  9 elementos gastando el acento, ninguno en los tres momentos que la
+  skill reserva; 42px de desbordamiento horizontal en Hoy móvil; 40 de
+  80 iniciales truncadas en Rutinas móvil; filas de calendario de 200px
+  cuya altura la dicta la columna de resumen. Los bugs encontrados están
+  en `to_attend.md`; el plan de 5 fases, en `ROADMAP.md`.
+- **Fases 1 y 2 implementadas** (tokens + primitives). El "por qué" está
+  en `CLAUDE.md` → "Sistema de diseño", incluidas las dos trampas que
+  costaron tiempo: Turbopack cachea `globals.css` y hay que borrar
+  `.next`; y anidar alfa sobre un token que ya la lleva produce CSS
+  inválido que el navegador descarta **en silencio**.
+- **Las vistas no se han tocado**: visualmente la app está casi igual.
+  El sustrato está puesto, pero quien lo consume son las fases 3 y 4.
+
 **Para la próxima sesión:**
+- Revisar las fases 1-2 y decidir si seguimos con la 3 (Hoy). Al tocar
+  vistas: `Badge variant="metric"` para toda cifra, `Input variant="line"`
+  en vez de la constante `fieldClass` duplicada, y variantes de `Card`
+  para dar pesos distintos en vez de apilar tarjetas iguales.
 - Empezar a usar las dos rutinas que quedaron configuradas.
 - Falta por crear la **rutina capilar**, que es el caso de uso que
   originó todo el menú de Rutinas (ver `CLAUDE.md`) y el ejemplo típico

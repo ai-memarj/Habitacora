@@ -53,6 +53,43 @@ _(vacío por ahora)_
 
 ## Necesario
 
+### Rutinas es inusable en móvil, y Hoy desborda 42px
+- **Qué pasa** (medido en la auditoría de UI del 2026-10-15, viewport
+  390x844):
+  - **Hoy**: `document.scrollWidth` 432 frente a 390 de viewport → 42px
+    de desbordamiento horizontal. Lo causa la fila de seis
+    botones-icono de `day-nav.tsx`, que no envuelve; el último botón
+    queda cortado. El primitive ya tiene el tamaño `icon-sm` necesario
+    para arreglarlo, falta aplicarlo y permitir el salto de línea.
+  - **Rutinas**: **40 de 80 iniciales de actividad quedan truncadas a
+    invisible** (solo se ven los puntos de color) y los nombres de los
+    días se solapan entre sí. La pantalla cuyo propósito es decirte qué
+    te toca hoy no puede decírtelo en el móvil.
+- **Por qué importa más de lo que parece:** esto es una app de ritual
+  diario; el teléfono es el dispositivo donde de verdad se rellena.
+- **Disparador:** Fase — es la Fase 0 del plan de rediseño (ver
+  `SESSIONS.md`), a atacar antes o junto con las fases de vistas.
+- **Detectado:** 2026-10-15, auditoría UI/UX.
+
+### `capitalize` sobre la fecha entera en el dashboard
+- **Qué pasa:** `day-nav.tsx:40` aplica `capitalize` a toda la cadena,
+  así que se lee *"Jueves, 15 **De** Octubre"*. Debería afectar solo a
+  la inicial.
+- **Disparador:** Fase — con la Fase 0 / Fase 3 del rediseño.
+- **Detectado:** 2026-10-15, auditoría UI/UX.
+
+### 404 repetido en `GET /api/summary/`
+- **Qué pasa:** la pantalla Hoy dispara dos peticiones a
+  `http://localhost:8000/api/summary/` **sin fecha** en cada carga, que
+  devuelven 404. No rompe nada visible (SWR lo absorbe) pero ensucia la
+  consola y enmascararía un error real.
+- **Dónde mirar:** `src/hooks/use-day-summary.ts` — probablemente se
+  construye la clave antes de tener la fecha.
+- **Disparador:** Evento — la próxima vez que se toque el dashboard
+  diario o se investigue cualquier otro error de consola.
+- **Detectado:** 2026-10-15, auditoría UI/UX.
+
+
 ### Python de sistema en Arch no es apto para el proyecto sin fijar versión
 - **Qué pasa:** `requirements.txt` fija `pydantic==2.9.2`, cuyo
   `pydantic-core` (compilado en Rust vía PyO3 0.22) no tiene wheel para

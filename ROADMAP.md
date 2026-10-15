@@ -44,6 +44,20 @@ sitio donde se mantiene la lista de pendientes — no la dupliques en
   la UI.
 - Agrupar actividades de rutina ("2 de acondicionamiento, me da igual
   cuáles"), ver `to_attend.md`.
+- **Rediseño UI/UX, fases pendientes** (plan completo en `SESSIONS.md`,
+  entrada del 2026-10-15; dirección de arte en
+  `.claude/skills/desing-system/SKILL.md`). Hechas las fases 1 (tokens)
+  y 2 (primitives). Quedan:
+  - *Fase 0* — bugs bloqueantes de móvil, ver `to_attend.md`.
+  - *Fase 3* — Hoy: Bento real (la rejilla `md:grid-cols-2` está
+    declarada y anulada con `col-span-2` en los tres hijos), frase como
+    bloque editorial, panel de sueño alineado, control de hora propio en
+    24h, cifras a `Badge variant="metric"`, Recharts desaturado.
+  - *Fase 4* — Rutinas: quitar la losa violeta de la cabecera, rehacer
+    la columna de cupos (hoy 80 pastillas de color en una pantalla),
+    altura de celda independiente del resumen, y layout propio en móvil.
+  - *Fase 5* — micro-interacciones: estados de foco, afordancia del
+    arrastre, feedback de cierre del día.
 - Selector de tema claro/oscuro real (`next-themes`); ahora mismo fijo
   en oscuro.
 - Migrar la base de datos a Postgres y desplegar en servidor propio

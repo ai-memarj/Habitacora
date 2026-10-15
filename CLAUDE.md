@@ -265,6 +265,75 @@ tipos: se rellena lo que haga falta ahí y la rutina toma su forma.
 - **No implementado**: renombrar/recolorear una rutina ya creada (sigue
   pendiente desde antes), en `ROADMAP.md`.
 
+## Sistema de diseño [nuevo 2026-10-15]
+
+Dirección de arte y reglas de uso: `.claude/skills/desing-system/SKILL.md`
+(regla 70/20/10, referentes Linear/Vercel/Reflect). Aquí va solo el
+"por qué" de cómo está construido el sustrato en código.
+
+**El diagnóstico que lo motivó**: la app tenía el vocabulario de un
+producto premium (oscuro, glass, Fraunces, Framer Motion) pero ninguna
+de las escalas que lo sostienen. Todo vivía en una elevación, con un
+borde y un peso de badge. Eso es lo que hacía que se leyera como MVP —
+no era falta de pulido, era que la jerarquía no existía.
+
+- **Profundidad por luminancia, no por borde ni sombra**
+  (`globals.css`): cuatro escalones `--surface-0..3`. Los tokens
+  semánticos que ya existían (`--background`, `--card`) se DERIVAN de
+  esa escala, así que siguen siendo API válida y nada de lo que los
+  usaba cambió. Si necesitas un nivel nuevo, añádelo a la escala; no
+  inventes un color suelto.
+- **El borde es alfa, no gris**: `--border` pasó de `240 6% 16%` a
+  `white/6%`. Un gris opaco se pelea con la superficie que tenga debajo
+  (era lo que convertía el calendario de Rutinas en una hoja de
+  cálculo); una alfa se funde con cualquiera de los cuatro escalones.
+  `--border-strong` para los pocos casos que pidan más.
+- **`.edge` sustituye a `shadow-sm`**: sobre un fondo casi negro una
+  sombra proyectada no se percibe como elevación, solo emborrona el
+  contorno. La separación la da un realce interior de 1px arriba, que es
+  como lo resuelven Linear/Vercel. Aplica a tarjetas y a botones
+  sólidos. **No reintroduzcas `shadow-*` en superficies oscuras.**
+- **`--accent-emotional` separado de `--primary`** [importante]: la
+  skill reserva el color para tres momentos (frase del día, racha,
+  cierre del día). Antes TODO badge usaba `soft` violeta, así que los
+  minutos de cada tarea competían con la racha: cuatro acentos en una
+  lista de cuatro tareas y cero en los momentos que lo merecen. Tener el
+  acento emocional en su propio token hace que gastarlo en un badge
+  secundario deje de ser el camino fácil.
+
+**Primitives** (`src/components/ui/`) — compón variantes, no crees
+markup paralelo:
+- `Card`: `quiet` (por defecto) / `elevated` / `editorial` / `ghost`, y
+  densidades de padding en `CardHeader`/`CardContent`/`CardFooter`.
+  Existen para poder construir Bento: **apilar tarjetas idénticas es el
+  error que hay que evitar**.
+- `Badge`: **`metric` es el destino de cualquier cifra** (minutos,
+  cupos, porcentajes) — neutro y con `tabular-nums`. `emotional` solo
+  para los tres momentos. `soft` queda para compatibilidad, pero en
+  vistas nuevas elige entre esos dos.
+- `Input`: `line` formaliza el estilo "sin caja" que estaba copiado a
+  mano como constante `fieldClass` duplicada en `today-card.tsx` y
+  `task-card.tsx`; `numeric` activa cifras tabulares (automático en
+  `type="number"`).
+- `Button`: `icon-sm` para filas densas de botones-icono.
+
+**Dos trampas que costaron tiempo y volverán a aparecer:**
+
+1. **Turbopack cachea `globals.css` de forma agresiva.** Un cambio de
+   tokens puede no reflejarse ni reiniciando `npm run dev`: hay que
+   borrar `.next`. Si tocas `globals.css` y el navegador sigue mostrando
+   los valores viejos, no busques el fallo en tu CSS — `rm -rf .next` y
+   vuelve a arrancar. Compruébalo leyendo la hoja servida, no la
+   pantalla:
+   `curl -s localhost:3000/_next/static/.../x.css | grep -o "\.edge-soft {[^}]*}"`
+2. **No anides alfa sobre un token que ya la lleva.**
+   `hsl(var(--edge-highlight) / 0.6)` cuando `--edge-highlight` ya vale
+   `0 0% 100% / .05` produce `hsl(... / .05 / .6)`, que es CSS inválido:
+   el navegador **descarta la regla en silencio** y el efecto desaparece
+   sin ningún error. Por eso `.edge-soft` tiene su propio token. Ni
+   `tsc` ni `eslint` ni `next build` detectan esto — solo mirarlo en el
+   navegador.
+
 ## Qué falta y en qué fase está el proyecto
 
 Ver `ROADMAP.md` — lista única de pendientes (deliberadamente
