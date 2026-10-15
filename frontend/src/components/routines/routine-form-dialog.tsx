@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+
 import {
   Dialog,
   DialogContent,
@@ -11,49 +12,44 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { routinesApi } from "@/lib/api";
-import type { RoutineType } from "@/types";
 
 interface RoutineFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  /** Recibe la rutina creada, para poder llevar al usuario a configurarla. */
+  onCreated: (id: number) => void;
 }
 
-const TYPE_OPTIONS: { value: RoutineType; label: string; hint: string }[] = [
-  {
-    value: "checklist",
-    label: "Lista por día",
-    hint: 'Varias iniciales por día, se tachan una a una (p. ej. una rutina capilar: "V-M", "F-K"...)',
-  },
-  {
-    value: "simple",
-    label: "Racha simple",
-    hint: 'Un único check por día (p. ej. "no fumar", "meditar")',
-  },
-];
-
 const DEFAULT_COLOR = "#2563EB";
+const NAME_MAX = 60;
 
+/**
+ * Crear una rutina pide SOLO nombre y color.
+ *
+ * Antes había que elegir tipo ("lista por día" / "racha simple") aquí
+ * mismo, que es justo cuando menos claro se tiene qué forma va a tener
+ * la rutina. Ahora la forma se construye después, en la propia pantalla
+ * de la rutina: se le añaden actividades, un ciclo, cupos o una meta
+ * según haga falta, y el modo de visualización se deduce de eso (ver
+ * `routineMode()` en src/lib/routine-cycle.ts).
+ */
 export function RoutineFormDialog({ open, onOpenChange, onCreated }: RoutineFormDialogProps) {
   const [name, setName] = useState("");
-  const [type, setType] = useState<RoutineType>("checklist");
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    const limpio = name.trim();
+    if (!limpio) return;
     setSubmitting(true);
     try {
-      await routinesApi.create({ name: name.trim(), type, color });
+      const creada = await routinesApi.create({ name: limpio, color });
       setName("");
-      setType("checklist");
       setColor(DEFAULT_COLOR);
       onOpenChange(false);
-      onCreated();
-      toast.success("Rutina creada");
+      onCreated(creada.id);
     } catch {
       toast.error("No se pudo crear la rutina");
     } finally {
@@ -66,7 +62,11 @@ export function RoutineFormDialog({ open, onOpenChange, onCreated }: RoutineForm
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nueva rutina</DialogTitle>
-          <DialogDescription>Un calendario para seguir un hábito día a día.</DialogDescription>
+          <DialogDescription>
+            Solo el nombre para empezar. Después, en su propia pantalla, le añades las actividades y
+            el patrón: una rotación de productos, un reparto semanal de entrenos o un reto de 30
+            días salen todos de ahí.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -76,38 +76,21 @@ export function RoutineFormDialog({ open, onOpenChange, onCreated }: RoutineForm
               value={color}
               onChange={(e) => setColor(e.target.value)}
               className="size-9 shrink-0 cursor-pointer rounded-md border-0 bg-transparent"
+              title="Color de la rutina"
               aria-label="Color de la rutina"
             />
             <Input
-              placeholder="Nombre (p. ej. Rutina capilar)"
+              placeholder="Nombre (p. ej. Rutina capilar, Entrenos)"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={NAME_MAX}
               className="flex-1"
               autoFocus
             />
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            {TYPE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setType(opt.value)}
-                className={cn(
-                  "rounded-lg border p-3 text-left transition-colors",
-                  type === opt.value
-                    ? "border-primary/50 bg-primary/10"
-                    : "border-border hover:bg-accent/50"
-                )}
-              >
-                <p className="text-sm font-medium">{opt.label}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{opt.hint}</p>
-              </button>
-            ))}
-          </div>
-
           <Button type="submit" disabled={submitting || !name.trim()} className="w-full">
-            Crear rutina
+            Crear y configurar
           </Button>
         </form>
       </DialogContent>

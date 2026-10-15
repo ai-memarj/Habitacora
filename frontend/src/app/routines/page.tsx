@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Plus, Trash2, ListChecks, Repeat, CalendarRange } from "lucide-react";
+import { Plus, Trash2, Target, CalendarCheck, Repeat, CalendarRange } from "lucide-react";
 
 import { Navbar } from "@/components/layout/navbar";
 import { RoutineFormDialog } from "@/components/routines/routine-form-dialog";
@@ -13,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRoutines } from "@/hooks/use-routines";
 import { routinesApi } from "@/lib/api";
+import { routineMode } from "@/lib/routine-cycle";
+import { routineShapeLabel } from "@/components/routines/routine-config-panel";
 
 const container = {
   hidden: { opacity: 0 },
@@ -23,7 +26,15 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
 };
 
+/** Cómo se presenta cada modo en la tarjeta del listado. */
+const MODE_META = {
+  pauta: { label: "Pauta", icon: Repeat, hint: "el ciclo dice qué toca cada día" },
+  cupo: { label: "Cupo", icon: CalendarCheck, hint: "un reparto que cumplir por ciclo" },
+  reto: { label: "Reto", icon: Target, hint: "días seguidos hacia una meta" },
+} as const;
+
 export default function RoutinesPage() {
+  const router = useRouter();
   const { routines, isLoading, mutate } = useRoutines();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
@@ -60,7 +71,8 @@ export default function RoutinesPage() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Rutinas</h1>
             <p className="text-sm text-muted-foreground">
-              Calendarios de hábitos: tacha iniciales día a día o lleva una racha simple.
+              Calendarios de hábitos. Cada una toma su forma según lo que le configures: una
+              rotación, un reparto por ciclo o un reto con meta.
             </p>
           </div>
           <Button onClick={() => setDialogOpen(true)}>
@@ -102,14 +114,20 @@ export default function RoutinesPage() {
                       <p className="text-lg font-semibold tracking-tight sm:text-xl">{r.name}</p>
                     </div>
                   </div>
-                  <Badge variant="soft" className="w-fit gap-1">
-                    {r.type === "checklist" ? (
-                      <ListChecks className="size-3" />
-                    ) : (
-                      <Repeat className="size-3" />
-                    )}
-                    {r.type === "checklist" ? "Lista por día" : "Racha simple"}
-                  </Badge>
+                  {(() => {
+                    // El tipo no se almacena: se deduce de lo configurado.
+                    const meta = MODE_META[routineMode(r)];
+                    const Icon = meta.icon;
+                    return (
+                      <div className="mt-auto space-y-1.5">
+                        <Badge variant="soft" className="w-fit gap-1" title={meta.hint}>
+                          <Icon className="size-3" />
+                          {meta.label}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">{routineShapeLabel(r)}</p>
+                      </div>
+                    );
+                  })()}
                 </Link>
                 <Button
                   variant="ghost"
@@ -131,7 +149,18 @@ export default function RoutinesPage() {
         )}
       </motion.main>
 
-      <RoutineFormDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={mutate} />
+      <RoutineFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onCreated={(id) => {
+          // Una rutina recién creada está vacía: lo siguiente que hay que
+          // hacer SIEMPRE es configurarla, así que se va directo a ella en
+          // vez de dejar al usuario en el listado mirando una tarjeta sin
+          // nada dentro.
+          mutate();
+          router.push(`/routines/${id}`);
+        }}
+      />
     </div>
   );
 }

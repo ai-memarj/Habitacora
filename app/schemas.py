@@ -1,7 +1,8 @@
 """Esquemas Pydantic: forma de los datos que entran y salen de la API."""
 import re
 from datetime import date, time
-from typing import Literal, Optional
+from datetime import date as date_type  # alias: en clases con un campo llamado `date`, el nombre del campo tapa al del tipo
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -43,6 +44,13 @@ class CategoryOut(BaseModel):
 
 
 MINUTES_PER_DAY = 24 * 60
+MAX_CYCLE_LENGTH = 366  # un ciclo más largo que un año no es un ciclo
+
+
+def _validate_quota(v: Optional[int]) -> Optional[int]:
+    if v is not None and v < 1:
+        raise ValueError("Un cupo debe ser al menos 1 (deja vacío para no tener cupo)")
+    return v
 
 
 def _validate_task_minutes(v: int) -> int:
@@ -143,36 +151,152 @@ class DailyEntryOut(BaseModel):
 
 
 # ---------- Routines (calendarios de hábitos) ----------
+#
+# No hay campo `type`: el modo (pauta / cupo / reto) se DEDUCE en el
+# frontend de qué campos están rellenos. Ver el docstring de `Routine`
+# en app/models.py.
+
+
+class RoutineActivityCreate(BaseModel):
+    name: str
+    short_label: Optional[str] = None
+    color: Optional[str] = None
+    quota: Optional[int] = None
+
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
+
+    @field_validator("quota")
+    @classmethod
+    def quota_positive(cls, v):
+        return _validate_quota(v)
+
+
+class RoutineActivityUpdate(BaseModel):
+    name: Optional[str] = None
+    short_label: Optional[str] = None
+    color: Optional[str] = None
+    quota: Optional[int] = None
+    position: Optional[int] = None
+
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
+
+    @field_validator("quota")
+    @classmethod
+    def quota_positive(cls, v):
+        return _validate_quota(v)
+
+
+class RoutineActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    routine_id: int
+    name: str
+    short_label: Optional[str] = None
+    color: Optional[str] = None
+    position: int
+    quota: Optional[int] = None
+
+
+class RoutineCycleSlotOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    routine_id: int
+    activity_id: int
+    day_index: int
+    position: int
+
+
+class RoutineCycleSlotIn(BaseModel):
+    activity_id: int
+    day_index: int
+
+
+class RoutineCycleSet(BaseModel):
+    """Sustituye el ciclo ENTERO de una rutina.
+
+    Reemplazar todo en vez de hacer CRUD slot a slot es lo que encaja con
+    el editor de patrón del frontend, que mantiene el ciclo completo en
+    estado local y lo guarda de una vez.
+    """
+    cycle_length: int
+    cycle_start: Optional[date] = None
+    slots: list[RoutineCycleSlotIn] = []
+
+    @field_validator("cycle_length")
+    @classmethod
+    def cycle_length_sane(cls, v):
+        if v < 1:
+            raise ValueError("El ciclo debe durar al menos 1 día")
+        if v > MAX_CYCLE_LENGTH:
+            raise ValueError(f"El ciclo no puede durar más de {MAX_CYCLE_LENGTH} días")
+        return v
+
+
 class RoutineCreate(BaseModel):
     name: str
-    type: Literal["checklist", "simple"] = "checklist"
     color: Optional[str] = None
+    cycle_length: Optional[int] = None
+    cycle_start: Optional[date] = None
+    goal_days: Optional[int] = None
+
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
 
 
 class RoutineUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
     position: Optional[int] = None
+    cycle_length: Optional[int] = None
+    cycle_start: Optional[date] = None
+    goal_days: Optional[int] = None
+    # `goal_days`/`cycle_start` se quitan mandando null explícito; ver
+    # `clear_fields` en el router (Pydantic no distingue "ausente" de
+    # "null" sin model_fields_set, que es justo lo que usa el router).
+
+    @field_validator("color")
+    @classmethod
+    def color_is_hex(cls, v):
+        return _validate_hex_color(v)
 
 
 class RoutineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
-    type: str
     color: Optional[str] = None
     position: int
+    cycle_length: Optional[int] = None
+    cycle_start: Optional[date] = None
+    goal_days: Optional[int] = None
+    # Anidados: el frontend necesita el vocabulario y el ciclo para pintar
+    # cualquier cosa, así que mandarlos aquí ahorra dos peticiones por
+    # pantalla y mantiene un solo tipo en el cliente.
+    activities: list[RoutineActivityOut] = []
+    cycle_slots: list[RoutineCycleSlotOut] = []
 
 
 class RoutineItemCreate(BaseModel):
     date: date
+    activity_id: Optional[int] = None
     label: Optional[str] = None
+    done: Optional[bool] = None
 
 
 class RoutineItemUpdate(BaseModel):
+    activity_id: Optional[int] = None
     label: Optional[str] = None
     done: Optional[bool] = None
     position: Optional[int] = None
+    date: Optional[date_type] = None  # mover un item a otro día (reparto de cupos)
 
 
 class RoutineItemOut(BaseModel):
@@ -180,6 +304,7 @@ class RoutineItemOut(BaseModel):
     id: int
     routine_id: int
     date: date
+    activity_id: Optional[int] = None
     label: Optional[str] = None
     done: bool
     position: int
@@ -187,8 +312,13 @@ class RoutineItemOut(BaseModel):
 
 class RoutineBulkDay(BaseModel):
     """Un día dentro de un pegado masivo: sustituye TODOS los items de ese
-    día por esta lista (incluido si alguno ya estaba tachado)."""
+    día por esta lista (incluido si alguno ya estaba tachado).
+
+    `activity_ids` es la vía normal (estampado del ciclo e importación por
+    texto resuelta contra el vocabulario); `labels` se mantiene para
+    items sueltos sin actividad."""
     date: date
+    activity_ids: list[int] = []
     labels: list[str] = []
 
 

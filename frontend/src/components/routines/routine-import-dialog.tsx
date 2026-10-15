@@ -13,12 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { routineItemsApi } from "@/lib/api";
 import { parseRoutineBulkText, formatRoutineBulkText } from "@/lib/routine-bulk-text";
-import type { RoutineItem } from "@/types";
+import type { Routine, RoutineItem } from "@/types";
 
 interface RoutineImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  routineId: number;
+  routine: Routine;
   year: number;
   month: number; // 0-11
   monthLabel: string;
@@ -29,7 +29,7 @@ interface RoutineImportDialogProps {
 export function RoutineImportDialog({
   open,
   onOpenChange,
-  routineId,
+  routine,
   year,
   month,
   monthLabel,
@@ -48,23 +48,28 @@ export function RoutineImportDialog({
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
-      setText(formatRoutineBulkText(year, month, itemsByDate));
+      setText(formatRoutineBulkText(year, month, itemsByDate, routine.activities));
       setErrors([]);
     }
   }
 
   async function handleImport() {
-    const { days, errors: parseErrors } = parseRoutineBulkText(text, year, month);
+    const { days, errors: parseErrors } = parseRoutineBulkText(
+      text,
+      year,
+      month,
+      routine.activities
+    );
     setErrors(parseErrors);
     if (days.length === 0) {
-      toast.error('No se reconoció ningún día. Formato: "1. V-M, F-K"');
+      toast.error('No se reconoció ningún día. Formato: "1. BOX, MOV"');
       return;
     }
     setSubmitting(true);
     try {
       await routineItemsApi.bulkSet(
-        routineId,
-        days.map((d) => ({ date: d.date, labels: d.labels }))
+        routine.id,
+        days.map((d) => ({ date: d.date, activity_ids: d.activityIds, labels: d.labels }))
       );
       onImported();
       onOpenChange(false);
@@ -86,16 +91,16 @@ export function RoutineImportDialog({
         <DialogHeader>
           <DialogTitle className="capitalize">Importar {monthLabel}</DialogTitle>
           <DialogDescription>
-            Una línea por día: el número del día, un punto, y las iniciales separadas por comas.
-            Sustituye lo que hubiera ya guardado esos días; un día que no escribas se queda como
-            está.
+            Una línea por día: el número del día, un punto, y las actividades separadas por comas
+            (vale tanto las iniciales como el nombre completo). Sustituye lo que hubiera ya
+            guardado esos días; un día que no escribas se queda como está.
           </DialogDescription>
         </DialogHeader>
 
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={"1. V-M, F-K\n2. V-M, H\n3. V-M"}
+          placeholder={"1. BOX, MOV\n2. Carrera continua\n3. FUE"}
           rows={14}
           spellCheck={false}
           className="w-full resize-none rounded-md border border-input bg-transparent p-3 font-mono text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"

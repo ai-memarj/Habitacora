@@ -6,8 +6,8 @@ Entidades:
 - Task: una tarea registrada en un día concreto, con categoría, nombre y minutos dedicados
 - SleepLog: registro de sueño de una noche (hora de dormir/despertar y % de fases)
 - DailyEntry: lo "no estructurado" del día -> frase motivacional, estado de ánimo, notas
-- Routine / RoutineItem: calendarios de hábitos (p. ej. "Rutina capilar"),
-  ver el docstring de Routine para el porqué del modelo.
+- Routine / RoutineActivity / RoutineCycleSlot / RoutineItem: calendarios
+  de hábitos (p. ej. "Rutina capilar"), ver el docstring de Routine.
 """
 from datetime import date as date_type
 
@@ -71,39 +71,138 @@ class DailyEntry(Base):
 
 
 class Routine(Base):
-    """Un calendario de hábito/rutina (p. ej. "Rutina capilar", "No fumar").
+    """Un calendario de hábito/rutina (p. ej. "Rutina capilar", "Entrenos",
+    "No fumar").
 
-    `type` solo cambia cómo se comporta la UI, no el almacenamiento (ambos
-    tipos usan RoutineItem):
-    - "checklist": cada día puede tener varios RoutineItem con su propio
-      `label` (las iniciales tipo "V-M", "F-K" del calendario de ejemplo
-      del usuario), cada uno tachable por separado.
-    - "simple": cada día tiene como mucho un RoutineItem (label=None), y
-      tachar el día entero es tachar ese único item — para calendarios
-      tipo racha donde solo importa "hecho / no hecho" ese día.
+    **No hay tipos de rutina.** Antes había un campo `type`
+    ("checklist" | "simple") que obligaba a clasificar la rutina al
+    crearla, justo cuando menos claro se tiene qué forma va a tener. Las
+    tres formas que surgen en la práctica son la misma estructura
+    rellenada a distintos niveles:
+
+    - *Pauta* (rutina capilar): vocabulario de varias actividades + ciclo
+      de N días. El ciclo dice qué toca cada día.
+    - *Cupo* (entrenos de la semana): lo anterior + `quota` en las
+      actividades. El ciclo propone un reparto y los cupos se verifican
+      por repetición del ciclo, no por semana natural — así un ciclo de
+      4 días no necesita inventarse dónde empieza "la semana".
+    - *Reto* ("30 días sin fumar"): una sola actividad, ciclo de 1 día y
+      `goal_days`.
+
+    Así que el modo de visualización se DEDUCE en el frontend de qué
+    campos están rellenos (ver `routineMode()` en
+    frontend/src/lib/routine-cycle.ts), no se almacena.
+
+    `cycle_length`/`cycle_start` definen el patrón; `cycle_start` es el
+    ancla desde la que se cuenta el día del ciclo, lo que permite que un
+    ciclo de 7 días anclado a un lunes se comporte exactamente como una
+    plantilla semanal.
     """
     __tablename__ = "routines"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(120), nullable=False)
-    type = Column(String(20), nullable=False, default="checklist")  # "checklist" | "simple"
     color = Column(String(20), nullable=True)
     position = Column(Integer, nullable=False, default=0)  # orden en el listado de rutinas
 
+    # Patrón. Ambos NULL = rutina sin plan: se rellena a mano día a día
+    # (válido, para cuando aún no sabes qué forma tendrá).
+    cycle_length = Column(Integer, nullable=True)  # N días que dura el ciclo
+    cycle_start = Column(Date, nullable=True)      # ancla desde la que se cuenta
+
+    goal_days = Column(Integer, nullable=True)  # "30 días sin fumar"; NULL = sin meta
+
+    activities = relationship(
+        "RoutineActivity",
+        back_populates="routine",
+        cascade="all, delete-orphan",
+        order_by="RoutineActivity.position",
+    )
+    cycle_slots = relationship(
+        "RoutineCycleSlot",
+        back_populates="routine",
+        cascade="all, delete-orphan",
+        order_by="RoutineCycleSlot.day_index",
+    )
     items = relationship(
         "RoutineItem", back_populates="routine", cascade="all, delete-orphan"
     )
 
 
+class RoutineActivity(Base):
+    """El vocabulario de una rutina: las cosas concretas que se hacen en ella.
+
+    Sustituye al `label` de texto libre que tenía RoutineItem. Con texto
+    libre, "Boxeo", "boxeo" y "box" eran tres cosas distintas para la base
+    de datos, así que no se podía contar nada ni colorear por tipo; y
+    había que reescribir lo mismo decenas de veces al mes.
+
+    `quota` es "cuántas veces por repetición del ciclo" y es lo único que
+    convierte una rutina en un Cupo. NULL = sin cupo (no se cuenta).
+    """
+    __tablename__ = "routine_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    routine_id = Column(Integer, ForeignKey("routines.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    short_label = Column(String(8), nullable=True)  # lo que se pinta en la celda del calendario
+    color = Column(String(20), nullable=True)
+    position = Column(Integer, nullable=False, default=0)
+    quota = Column(Integer, nullable=True)  # veces por ciclo; NULL = sin cupo
+
+    routine = relationship("Routine", back_populates="activities")
+    cycle_slots = relationship(
+        "RoutineCycleSlot", back_populates="activity", cascade="all, delete-orphan"
+    )
+    items = relationship("RoutineItem", back_populates="activity")
+
+
+class RoutineCycleSlot(Base):
+    """Una actividad colocada en un día del ciclo (el patrón, no el calendario).
+
+    `day_index` va de 0 a `Routine.cycle_length - 1`. Un día del ciclo
+    puede tener varias actividades (el caso de los entrenos: 9 sesiones en
+    7 días), de ahí que esto sea una tabla y no una columna.
+
+    El patrón no se pinta al vuelo sobre el calendario: se "estampa"
+    (genera RoutineItem reales) sobre un mes concreto. Así cambiar el
+    ciclo no reescribe el pasado — el historial sigue diciendo lo que de
+    verdad tocaba entonces.
+    """
+    __tablename__ = "routine_cycle_slots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    routine_id = Column(Integer, ForeignKey("routines.id"), nullable=False, index=True)
+    activity_id = Column(Integer, ForeignKey("routine_activities.id"), nullable=False, index=True)
+    day_index = Column(Integer, nullable=False)  # 0..cycle_length-1
+    position = Column(Integer, nullable=False, default=0)  # orden dentro del día del ciclo
+
+    routine = relationship("Routine", back_populates="cycle_slots")
+    activity = relationship("RoutineActivity", back_populates="cycle_slots")
+
+
 class RoutineItem(Base):
-    """Una entrada de una Routine en un día concreto (ver docstring de Routine)."""
+    """Lo que realmente pasó (o está planificado) un día concreto.
+
+    Es a la vez plan y registro: que el item exista significa "esto
+    tocaba"; `done` dice si se hizo. En rutinas con meta (retos) eso da
+    tres estados sin necesidad de más columnas: sin item = sin registrar,
+    `done=True` = cumplido, `done=False` = roto explícitamente. Sin esa
+    distinción la racha tendría que adivinar si un hueco es un fallo o un
+    día que simplemente no se registró.
+
+    `activity_id` es lo normal; `label` se mantiene para items sueltos
+    escritos a mano y para los datos anteriores al vocabulario.
+    """
     __tablename__ = "routine_items"
 
     id = Column(Integer, primary_key=True, index=True)
     routine_id = Column(Integer, ForeignKey("routines.id"), nullable=False, index=True)
     date = Column(Date, nullable=False, index=True)
-    label = Column(String(60), nullable=True)  # iniciales/texto corto; None en rutinas "simple"
+    activity_id = Column(Integer, ForeignKey("routine_activities.id"), nullable=True, index=True)
+    label = Column(String(60), nullable=True)  # texto suelto si no hay actividad
     done = Column(Boolean, nullable=False, default=False)
     position = Column(Integer, nullable=False, default=0)  # orden dentro del día
 
     routine = relationship("Routine", back_populates="items")
+    activity = relationship("RoutineActivity", back_populates="items")
