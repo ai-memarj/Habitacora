@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, Trash2, Settings2 } from "lucide-react";
+import { Plus, Trash2, Settings2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -20,7 +20,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { tasksApi } from "@/lib/api";
-import type { Category, DaySummary } from "@/types";
+import { cn } from "@/lib/utils";
+import type { Category, DaySummary, Task } from "@/types";
+
+// Mismo estilo "sin caja" (solo línea inferior) que ya usa la tarjeta
+// Frase+Sueño (`today-card.tsx`) — unifica el lenguaje visual del
+// dashboard de Hoy en vez de dejar esta fila con el recuadro con borde
+// que tenían todos los campos antes de ese rediseño.
+// Cubre tanto el Input (usa :focus-visible) como el SelectTrigger (usa
+// :focus) — así el anillo de foco por defecto de ambos queda anulado
+// igual y el único indicador de foco es el cambio de color del borde.
+const fieldClass =
+  "rounded-none border-0 border-b border-input bg-transparent px-0 shadow-none " +
+  "focus:ring-0 focus:border-primary " +
+  "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary";
 
 interface TaskCardProps {
   date: string;
@@ -44,9 +57,24 @@ export function TaskCard({
   const [minutes, setMinutes] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [justAddedId, setJustAddedId] = useState<number | null>(null);
+  const justAddedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current);
+    };
+  }, []);
 
   const tasks = summary?.tasks ?? [];
   const totalMinutes = summary?.total_minutes ?? 0;
+  const totalLabel =
+    totalMinutes < 60
+      ? `${totalMinutes} min`
+      : `${Math.floor(totalMinutes / 60)}h${totalMinutes % 60 ? ` ${totalMinutes % 60}min` : ""}`;
 
   const breakdown = Object.values(
     tasks.reduce<Record<number, { name: string; color: string; minutes: number }>>((acc, t) => {
@@ -59,6 +87,28 @@ export function TaskCard({
     }, {})
   ).sort((a, b) => b.minutes - a.minutes);
 
+  function startEdit(t: Task) {
+    setPendingDeleteId(null);
+    setEditingId(t.id);
+    setCategoryId(t.category.id.toString());
+    setName(t.name);
+    const h = Math.floor(t.minutes / 60);
+    const m = t.minutes % 60;
+    setHours(h ? String(h) : "");
+    setMinutes(m ? String(m) : "");
+    // Si la lista es larga, el formulario de arriba puede quedar fuera
+    // de la vista cuando se hace click en una tarea más abajo.
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setName("");
+    setHours("");
+    setMinutes("");
+    setCategoryId("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const cat = categoryId || categories[0]?.id.toString();
@@ -67,30 +117,63 @@ export function TaskCard({
 
     setSubmitting(true);
     try {
-      await tasksApi.create({
-        date,
-        name: name.trim(),
-        minutes: durationMinutes,
-        category_id: Number(cat),
-      });
-      setName("");
-      setHours("");
-      setMinutes("");
-      onChanged();
+      if (editingId) {
+        await tasksApi.update(editingId, {
+          name: name.trim(),
+          minutes: durationMinutes,
+          category_id: Number(cat),
+        });
+        setEditingId(null);
+        setName("");
+        setHours("");
+        setMinutes("");
+        onChanged();
+      } else {
+        const created = await tasksApi.create({
+          date,
+          name: name.trim(),
+          minutes: durationMinutes,
+          category_id: Number(cat),
+        });
+        setName("");
+        setHours("");
+        setMinutes("");
+        onChanged();
+        if (justAddedTimeout.current) clearTimeout(justAddedTimeout.current);
+        setJustAddedId(created.id);
+        justAddedTimeout.current = setTimeout(() => setJustAddedId(null), 1500);
+      }
     } catch {
-      toast.error("No se pudo añadir la tarea");
+      toast.error(editingId ? "No se pudo actualizar la tarea" : "No se pudo añadir la tarea");
     } finally {
       setSubmitting(false);
     }
   }
 
+  // Confirmación en dos pasos (clic de nuevo para confirmar) en vez de un
+  // confirm() nativo — mismo patrón que category-manager-dialog.tsx. Las
+  // tareas son el registro diario real (uso terapéutico, ver CLAUDE.md),
+  // así que un borrado accidental de un clic sale más caro que en otras
+  // entidades de la app.
+  function handleDeleteClick(e: React.MouseEvent, id: number) {
+    e.stopPropagation();
+    if (pendingDeleteId !== id) {
+      setPendingDeleteId(id);
+      return;
+    }
+    handleDelete(id);
+  }
+
   async function handleDelete(id: number) {
     try {
       await tasksApi.remove(id);
+      if (editingId === id) cancelEdit();
       onChanged();
       toast.success("Tarea borrada");
     } catch {
       toast.error("No se pudo borrar la tarea");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -99,12 +182,13 @@ export function TaskCard({
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle>Tareas de hoy</CardTitle>
         <div className="flex items-center gap-2">
-          <Badge variant="soft">{totalMinutes} min</Badge>
+          <Badge variant="soft">{totalLabel}</Badge>
           <Button
             variant="ghost"
             size="icon"
             className="size-7 text-muted-foreground"
             onClick={onManageCategories}
+            title="Gestionar categorías"
             aria-label="Gestionar categorías"
           >
             <Settings2 className="size-4" />
@@ -112,61 +196,122 @@ export function TaskCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1 min-w-0">
-            <Select value={categoryId || categories[0]?.id.toString()} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id.toString()}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: c.color ?? undefined }}
-                      />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {categories.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Aún no tienes ninguna categoría — necesitas al menos una para registrar tareas.
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={onManageCategories}>
+              <Plus className="size-3.5" />
+              Crear categoría
+            </Button>
           </div>
-          <Input
-            placeholder="Nombre de la tarea"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="flex-[2] min-w-0"
-          />
-          <div className="flex items-center gap-1.5">
-            <Input
-              type="number"
-              min={0}
-              placeholder="0"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              className="w-16"
-              aria-label="Horas dedicadas"
-            />
-            <span className="text-xs text-muted-foreground">h</span>
-            <Input
-              type="number"
-              min={0}
-              max={59}
-              placeholder="0"
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              className="w-16"
-              aria-label="Minutos dedicados"
-            />
-            <span className="text-xs text-muted-foreground">min</span>
-          </div>
-          <Button type="submit" disabled={submitting} className="sm:w-auto">
-            <Plus className="size-4" />
-            Añadir
-          </Button>
-        </form>
+        ) : (
+          <>
+            {editingId && (
+              <div className="flex items-center justify-between rounded-md bg-primary/10 px-3 py-1.5 text-xs text-primary">
+                <span>Editando tarea</span>
+                <button type="button" onClick={cancelEdit} className="font-medium hover:underline">
+                  Cancelar
+                </button>
+              </div>
+            )}
+            <form
+              ref={formRef}
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-4 sm:flex-row sm:items-end"
+            >
+              <div className="flex-1 min-w-0">
+                <Select value={categoryId || categories[0]?.id.toString()} onValueChange={setCategoryId}>
+                  <SelectTrigger className={fieldClass}>
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="size-2 rounded-full"
+                            style={{ backgroundColor: c.color ?? undefined }}
+                          />
+                          {c.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                id="task-name-input"
+                placeholder="Nombre de la tarea"
+                maxLength={60}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("task-hours-input")?.focus();
+                  }
+                }}
+                className={cn(fieldClass, "flex-[2] min-w-0")}
+              />
+              <div className="flex items-center gap-1.5">
+                <Input
+                  id="task-hours-input"
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value.slice(0, 2))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      document.getElementById("task-minutes-input")?.focus();
+                    }
+                  }}
+                  className={cn(fieldClass, "w-10 text-center")}
+                  aria-label="Horas dedicadas"
+                />
+                <span className="text-xs text-muted-foreground">h</span>
+                <Input
+                  id="task-minutes-input"
+                  type="number"
+                  min={0}
+                  max={59}
+                  placeholder="0"
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value.slice(0, 2))}
+                  className={cn(fieldClass, "w-10 text-center")}
+                  aria-label="Minutos dedicados"
+                />
+                <span className="text-xs text-muted-foreground">min</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {editingId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={cancelEdit}
+                    aria-label="Cancelar edición"
+                    title="Cancelar edición"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={submitting}
+                  aria-label={editingId ? "Guardar cambios" : "Añadir tarea"}
+                  title={editingId ? "Guardar cambios" : "Añadir tarea"}
+                >
+                  {editingId ? <Check className="size-4" /> : <Plus className="size-4" />}
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
 
         <Separator />
 
@@ -176,9 +321,20 @@ export function TaskCard({
             <Skeleton className="h-10 w-full" />
           </div>
         ) : tasks.length === 0 ? (
-          <p className="py-4 text-center text-sm italic text-muted-foreground">
-            Sin tareas registradas todavía hoy
-          </p>
+          <div className="flex flex-col items-center gap-2 py-4">
+            <p className="text-sm italic text-muted-foreground">Sin tareas registradas todavía hoy</p>
+            {categories.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById("task-name-input")?.focus()}
+              >
+                <Plus className="size-3.5" />
+                Añadir la primera tarea
+              </Button>
+            )}
+          </div>
         ) : (
           <ul className="space-y-1">
             <AnimatePresence initial={false}>
@@ -190,7 +346,15 @@ export function TaskCard({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50"
+                  onClick={() => startEdit(t)}
+                  className={cn(
+                    "group flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition-colors duration-700",
+                    t.id === editingId
+                      ? "bg-primary/10 ring-1 ring-inset ring-primary/30"
+                      : t.id === justAddedId
+                        ? "bg-primary/15"
+                        : "hover:bg-accent/50"
+                  )}
                 >
                   <span
                     className="size-2 shrink-0 rounded-full"
@@ -204,9 +368,15 @@ export function TaskCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                    onClick={() => handleDelete(t.id)}
-                    aria-label="Borrar tarea"
+                    className={cn(
+                      "size-7 shrink-0 transition-opacity",
+                      pendingDeleteId === t.id
+                        ? "text-destructive opacity-100"
+                        : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+                    )}
+                    onClick={(e) => handleDeleteClick(e, t.id)}
+                    aria-label={pendingDeleteId === t.id ? "Confirmar borrado" : "Borrar tarea"}
+                    title={pendingDeleteId === t.id ? "Pulsa otra vez para confirmar" : "Borrar tarea"}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>

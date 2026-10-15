@@ -101,17 +101,22 @@ export function CategoryManagerDialog({
                 value={c.color ?? "#6C5CE7"}
                 onChange={(e) => handleColorChange(c.id, e.target.value)}
                 className="size-8 cursor-pointer rounded-md border-0 bg-transparent"
+                title="Color de la categoría"
+                aria-label={`Color de ${c.name}`}
               />
               <Input
                 defaultValue={c.name}
+                maxLength={24}
                 onBlur={(e) => e.target.value !== c.name && handleRename(c.id, e.target.value)}
                 className="flex-1"
+                aria-label={`Nombre de la categoría ${c.name}`}
               />
               <Button
                 variant="ghost"
                 size="icon"
                 className={pendingDelete === c.id ? "text-destructive" : "text-muted-foreground"}
                 onClick={() => handleDelete(c.id)}
+                title={pendingDelete === c.id ? "Pulsa otra vez para confirmar" : "Borrar categoría"}
                 aria-label="Borrar categoría"
               >
                 <Trash2 className="size-4" />
@@ -128,14 +133,17 @@ export function CategoryManagerDialog({
             value={newColor}
             onChange={(e) => setNewColor(e.target.value)}
             className="size-8 cursor-pointer rounded-md border-0 bg-transparent"
+            title="Color de la nueva categoría"
+            aria-label="Color de la nueva categoría"
           />
           <Input
             placeholder="Nueva categoría"
+            maxLength={24}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             className="flex-1"
           />
-          <Button type="submit" size="icon" aria-label="Crear categoría">
+          <Button type="submit" size="icon" title="Crear categoría" aria-label="Crear categoría">
             <Plus className="size-4" />
           </Button>
         </form>

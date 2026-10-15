@@ -1,90 +1,30 @@
-"use client";
-
-import { ChevronLeft, ChevronRight, Flame, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { shiftISODate } from "@/lib/date";
+import { Sparkles } from "lucide-react";
 import { NavLinks } from "@/components/layout/nav-links";
+import packageJson from "../../../package.json";
 
-interface NavbarProps {
-  // Navegación de fecha + racha: solo las usa el dashboard diario ("/").
-  // Opcionales para que el mismo Navbar sirva de cabecera en el resto de
-  // secciones (p. ej. "/routines"), donde no tiene sentido mostrarlas.
-  date?: string; // ISO "YYYY-MM-DD"
-  onDateChange?: (date: string) => void;
-  streak?: number;
-  streakLoading?: boolean;
-}
-
-function formatLabel(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-}
-
-export function Navbar({ date, onDateChange, streak, streakLoading }: NavbarProps) {
+/**
+ * Cabecera global de la app: solo identidad (icono + nombre), navegación
+ * entre secciones y versión. Todo lo relativo al día concreto (fecha,
+ * selector de fecha, racha) vive en `DayNav`, dentro de la página "Hoy" —
+ * no tiene sentido en secciones como "/routines".
+ */
+export function Navbar() {
   return (
-    <nav className="glass sticky top-0 z-40 flex items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          <Sparkles className="size-4" />
+    <nav className="glass sticky top-0 z-40 grid grid-cols-3 items-center px-5 py-1.5 sm:px-8">
+      <div className="flex items-center gap-2 justify-self-start">
+        <div className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-primary">
+          <Sparkles className="size-3.5" />
         </div>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight">Bitácora</p>
-          {date && (
-            <p className="hidden text-base font-medium capitalize text-foreground sm:block sm:text-lg">
-              {formatLabel(date)}
-            </p>
-          )}
-        </div>
-
-        <div className="ml-1">
-          <NavLinks />
-        </div>
-
-        {!streakLoading && !!streak && streak > 0 && (
-          <Badge
-            variant="soft"
-            className={cn(
-              "ml-1 gap-1 border border-primary/20 bg-gradient-to-r from-orange-500/10 to-primary/10 text-orange-500 dark:text-orange-400"
-            )}
-          >
-            <Flame className="size-3" />
-            {streak} {streak === 1 ? "día" : "días"}
-          </Badge>
-        )}
-        {streakLoading && <Skeleton className="ml-1 h-5 w-16 rounded-full" />}
+        <p className="text-xs font-semibold tracking-tight sm:text-sm">Bitácora</p>
       </div>
 
-      {date && onDateChange && (
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            onClick={() => onDateChange(shiftISODate(date, -1))}
-            aria-label="Día anterior"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => e.target.value && onDateChange(e.target.value)}
-            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            onClick={() => onDateChange(shiftISODate(date, 1))}
-            aria-label="Día siguiente"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-      )}
+      <div className="justify-self-center">
+        <NavLinks />
+      </div>
+
+      <p className="justify-self-end text-[11px] font-medium text-muted-foreground sm:text-xs">
+        v{packageJson.version}
+      </p>
     </nav>
   );
 }

@@ -44,13 +44,22 @@ export const categoriesApi = {
 
 // ---------- Tareas ----------
 export const tasksApi = {
+  list: (for_date: string) => api.get<Task[]>("/api/tasks", { params: { for_date } }).then((r) => r.data),
   create: (data: { date: string; name: string; minutes: number; category_id: number }) =>
     api.post<Task>("/api/tasks", data).then((r) => r.data),
+  update: (id: number, data: { name?: string; minutes?: number; category_id?: number }) =>
+    api.put<Task>(`/api/tasks/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/api/tasks/${id}`),
 };
 
 // ---------- Sueño ----------
 export const sleepApi = {
+  /** `null` si ese día no tiene sueño registrado (404), en vez de lanzar. */
+  get: (for_date: string) =>
+    api
+      .get<SleepLog>(`/api/sleep/${for_date}`)
+      .then((r) => r.data)
+      .catch((err) => (err.response?.status === 404 ? null : Promise.reject(err))),
   upsert: (data: {
     date: string;
     sleep_time?: string | null;
@@ -63,6 +72,12 @@ export const sleepApi = {
 
 // ---------- Entrada diaria (frase / ánimo / notas) ----------
 export const dailyApi = {
+  /** `null` si ese día no tiene entrada registrada (404), en vez de lanzar. */
+  get: (for_date: string) =>
+    api
+      .get<DailyEntry>(`/api/daily/${for_date}`)
+      .then((r) => r.data)
+      .catch((err) => (err.response?.status === 404 ? null : Promise.reject(err))),
   upsert: (data: { date: string; quote?: string | null; mood?: number | null; notes?: string | null }) =>
     api.put<DailyEntry>("/api/daily", data).then((r) => r.data),
 };
