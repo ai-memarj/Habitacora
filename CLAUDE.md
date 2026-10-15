@@ -241,11 +241,19 @@ tipos: se rellena lo que haga falta ahí y la rutina toma su forma.
   con lo que sí se reconoció, igual de permisivo que antes.
 - `src/lib/date.ts` — sin cambios. Sigue siendo el único sitio con
   aritmética de fechas; `routine-cycle.ts` la usa, nunca `toISOString()`.
+- **Arrastrar items entre días** (`routine-day-cell.tsx`): drag & drop
+  HTML5 nativo. El `dataTransfer` usa un tipo propio
+  (`application/x-habitacora-item`) y no `text/plain`, para no confundir
+  texto arrastrado desde fuera del navegador con un item. El destino NO
+  se restringe a la misma ventana de ciclo: mover una sesión a otra
+  semana es legítimo, y los contadores de cupo lo reflejan solos porque
+  cuentan a partir de la fecha del item. Desactivado en rutinas tipo
+  reto (ahí la celda entera ya es un botón de tres estados).
+  **Ojo al probarlo con automatización**: los eventos de ratón
+  sintéticos NO disparan el drag & drop HTML5; hay que despachar
+  `DragEvent` con un `DataTransfer` de verdad. Con ratón real funciona.
 - **No implementado**: renombrar/recolorear una rutina ya creada (sigue
-  pendiente desde antes), y arrastrar items entre días. Lo segundo tiene
-  el backend listo (`PUT /api/routines/items/{id}` acepta `date`, probado
-  con curl) pero no hay UI de arrastre — el resumen de cupo ya hace
-  visible lo que falta sin ella. Ambos en `ROADMAP.md`.
+  pendiente desde antes), en `ROADMAP.md`.
 
 ## Qué falta y en qué fase está el proyecto
 

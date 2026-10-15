@@ -22,6 +22,8 @@ interface RoutineDayCellProps {
   onAddLabel: (label: string) => void;
   /** Cicla el día entero entre sin registrar → cumplido → roto (modo reto). */
   onCycleDay: () => void;
+  /** Mueve un item a este día (arrastre). `null` si el día no acepta sueltas. */
+  onDropItem?: (itemId: number) => void;
 }
 
 const DEFAULT_COLOR = "#6C5CE7";
@@ -38,9 +40,11 @@ export function RoutineDayCell({
   onAddActivity,
   onAddLabel,
   onCycleDay,
+  onDropItem,
 }: RoutineDayCellProps) {
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState("");
+  const [dragOver, setDragOver] = useState(false);
 
   const activityById = new Map(activities.map((a) => [a.id, a]));
 
@@ -63,6 +67,14 @@ export function RoutineDayCell({
   }
 
   const esReto = mode === "reto";
+  const aceptaSueltas = !esReto && onDropItem != null;
+
+  /** Lee el id que puso `onDragStart`. Devuelve null si lo arrastrado no es un item. */
+  function itemIdFrom(e: React.DragEvent): number | null {
+    const raw = e.dataTransfer.getData("application/x-habitacora-item");
+    const id = Number(raw);
+    return raw !== "" && Number.isInteger(id) ? id : null;
+  }
 
   return (
     <div
@@ -70,9 +82,33 @@ export function RoutineDayCell({
         "group flex min-h-24 flex-col gap-1 border-b border-r border-border p-1.5 sm:min-h-28 sm:p-2",
         !day.inMonth && "bg-muted/30",
         esReto && "cursor-pointer",
-        retoRoto && "bg-destructive/10"
+        retoRoto && "bg-destructive/10",
+        dragOver && "ring-2 ring-inset ring-primary"
       )}
       style={retoCumplido ? { backgroundColor: `${color}1a` } : undefined}
+      onDragOver={
+        aceptaSueltas
+          ? (e) => {
+              // Sin preventDefault el navegador no considera la celda un
+              // destino válido y no dispara onDrop.
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (!dragOver) setDragOver(true);
+            }
+          : undefined
+      }
+      onDragLeave={aceptaSueltas ? () => setDragOver(false) : undefined}
+      onDrop={
+        aceptaSueltas
+          ? (e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const id = itemIdFrom(e);
+              // Soltar en el mismo día no es un movimiento.
+              if (id !== null && !items.some((it) => it.id === id)) onDropItem(id);
+            }
+          : undefined
+      }
       onClick={esReto ? onCycleDay : undefined}
       role={esReto ? "button" : undefined}
       tabIndex={esReto ? 0 : undefined}
@@ -134,7 +170,22 @@ export function RoutineDayCell({
             return (
               <div
                 key={it.id}
-                className="group/item flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent/60"
+                draggable={onDropItem != null}
+                onDragStart={(e) => {
+                  // Tipo propio en vez de "text/plain" para no confundir
+                  // una suelta de texto arrastrado de fuera con un item.
+                  e.dataTransfer.setData("application/x-habitacora-item", String(it.id));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                title={
+                  onDropItem != null
+                    ? `${a?.name ?? it.label ?? ""} — arrástralo a otro día para moverlo`
+                    : undefined
+                }
+                className={cn(
+                  "group/item flex items-center gap-1 rounded px-1 py-0.5 hover:bg-accent/60",
+                  onDropItem != null && "cursor-grab active:cursor-grabbing"
+                )}
               >
                 <span
                   className="size-2 shrink-0 rounded-full"
@@ -146,7 +197,6 @@ export function RoutineDayCell({
                 <button
                   type="button"
                   onClick={() => onToggleItem(it)}
-                  title={a?.name ?? it.label ?? undefined}
                   className={cn(
                     "min-w-0 flex-1 truncate text-left text-xs font-medium sm:text-sm",
                     it.done ? "text-muted-foreground line-through" : "text-foreground"

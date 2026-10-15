@@ -67,15 +67,34 @@ arrancar.
   scratchpad de la sesión (efímero: si hace falta conservarla, copiarla
   a otro sitio).
 
+- **Arrastrar items entre días**, que era lo último que faltaba del plan.
+  Drag & drop HTML5 con un tipo propio en el `dataTransfer`.
+- **Verificación visual en Chrome** (el usuario conectó la extensión a
+  mitad de sesión): creada una rutina desde cero por la UI, vocabulario
+  con iniciales automáticas, validador del reparto pasando de "falta 2
+  BOX" a "✓ cuadra — 9 de 9", columnas del patrón renombrándose a
+  Lunes-Domingo al poner el ancla en lunes, estampado de los 31 días de
+  octubre, tachado actualizando los contadores de cupo, arrastre dentro
+  de la misma semana y entre semanas (los contadores se mueven de una
+  ventana a otra), y el tri-estado de los retos. "Hoy" sin regresiones y
+  sin errores de consola.
+  - Corregido de paso: la columna de resumen etiquetaba las ventanas
+    como "Ciclo 0 / 1 / 2" (las anteriores al ancla tienen índice
+    negativo y no decían nada); ahora muestra el rango de fechas.
+  - **Nota para automatizar**: el drag & drop HTML5 no se dispara con
+    eventos de ratón sintéticos; hay que despachar `DragEvent` con un
+    `DataTransfer`. No era un bug de la app.
+- Quedan en la base de datos **dos rutinas configuradas y vacías**
+  (Entrenos como cupo, No fumar como reto): se conservó la configuración
+  porque es la que describió el usuario, pero **todo el historial de
+  prueba se borró** — no hay ni un día marcado que no haya marcado él.
+
 **Para la próxima sesión:**
-- **Lo primero: usar Rutinas de verdad.** Está implementada y verificada
-  por API y por compilación, pero **nadie la ha usado todavía en el
-  navegador** — la extensión de Chrome no estaba conectada en esta
-  sesión, así que no hubo verificación visual. Crear las tres rutinas
-  reales (capilar, entrenos, no fumar) desde la UI es a la vez la prueba
-  que falta y datos reales.
-- Pendiente de UI (backend ya listo): renombrar/recolorear una rutina, y
-  arrastrar items entre días. Ver `ROADMAP.md`.
+- Empezar a usar las dos rutinas que quedaron configuradas, y crear la
+  capilar (pauta, ciclo de 4 días) que se diseñó pero no se llegó a
+  crear en la UI.
+- Pendiente de UI (backend ya listo): renombrar/recolorear una rutina.
+  Ver `ROADMAP.md`.
 - Fase 2 sigue sin cerrar: faltan datos reales sostenidos (el registro
   diario ya empezó el 2026-10-15, con tareas, sueño y frase).
 - Recordar que `app/models.py` ya no perdona: cualquier cambio necesita

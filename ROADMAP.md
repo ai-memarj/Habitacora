@@ -42,9 +42,6 @@ sitio donde se mantiene la lista de pendientes — no la dupliques en
 - Renombrar/recolorear una rutina ya creada (ahora hay que borrarla y
   recrearla). El backend ya lo soporta (`PUT /api/routines/{id}`), falta
   la UI.
-- Arrastrar un item de rutina de un día a otro dentro del mismo ciclo
-  (reparto manual de los cupos). El backend ya lo soporta (`PUT
-  /api/routines/items/{id}` acepta `date`), falta la UI de arrastre.
 - Agrupar actividades de rutina ("2 de acondicionamiento, me da igual
   cuáles"), ver `to_attend.md`.
 - Selector de tema claro/oscuro real (`next-themes`); ahora mismo fijo
@@ -66,8 +63,8 @@ sitio donde se mantiene la lista de pendientes — no la dupliques en
   cupo o reto— deducido de lo que se configure. Todo el diseño se hace
   desde la propia pantalla de la rutina: editor de vocabulario, editor
   de patrón con validación del reparto ("✓ cuadra — 9 de 9"), estampado
-  del patrón sobre un mes, resumen de cupos por ciclo y tri-estado en
-  los retos.
+  del patrón sobre un mes, resumen de cupos por ciclo, tri-estado en los
+  retos y arrastre de items entre días. Verificada en el navegador.
 - Importación masiva de rutinas pegando texto plano, mes a mes (ahora
   resuelve los nombres contra el vocabulario de la rutina).
 - Alembic: migraciones de base de datos, aplicadas al arrancar.

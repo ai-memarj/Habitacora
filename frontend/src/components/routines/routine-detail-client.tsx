@@ -129,6 +129,24 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
   }
 
   /**
+   * Mueve un item a otro día (arrastre). Pensado para repartir los cupos
+   * a mano: el plan decía boxeo el martes, lo hiciste el miércoles.
+   *
+   * No se restringe el destino a la misma ventana de ciclo: mover un item
+   * a otra semana es legítimo (adelantar o retrasar una sesión), y el
+   * resumen de cupos lo refleja solo donde corresponda, porque cuenta por
+   * ventana a partir de la fecha del item.
+   */
+  async function handleMoveItem(itemId: number, toDate: string) {
+    try {
+      await routineItemsApi.update(itemId, { date: toDate });
+      mutateItems();
+    } catch {
+      toast.error("No se pudo mover");
+    }
+  }
+
+  /**
    * Modo reto: el día entero cicla entre los tres estados. Crear el item
    * con la primera actividad del vocabulario si la hay (así el día queda
    * identificado), o sin ninguna si la rutina no tiene vocabulario.
@@ -321,6 +339,9 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
                         onAddActivity={(activityId) => handleAddActivity(day.iso, activityId)}
                         onAddLabel={(label) => handleAddLabel(day.iso, label)}
                         onCycleDay={() => handleCycleDay(day.iso)}
+                        onDropItem={
+                          mode === "reto" ? undefined : (itemId) => handleMoveItem(itemId, day.iso)
+                        }
                       />
                     ))}
                     {conColumnaResumen &&
@@ -335,7 +356,10 @@ export function RoutineDetailClient({ routineId }: RoutineDetailClientProps) {
                           <RoutineCycleSummary
                             compact
                             tally={quotaTally(routine, items, w)}
-                            label={`Ciclo ${w.index + 1}`}
+                            // Rango de fechas y no un número de ciclo: las
+                            // ventanas anteriores al ancla tienen índice
+                            // negativo, y "Ciclo 0" / "Ciclo -1" no dicen nada.
+                            label={`${formatCorto(w.startISO)} – ${formatCorto(w.endISO)}`}
                           />
                         );
                       })()}
