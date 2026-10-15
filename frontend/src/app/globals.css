@@ -7,9 +7,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: 0 0% 100%;
+  /* Escala de superficies por LUMINANCIA, no por borde.
+     Es la base de la "profundidad sin sombras": un elemento se separa del
+     fondo subiendo un escalón de luminosidad, no dibujando un marco. Los
+     tokens semánticos de abajo (--background, --card...) se derivan de
+     esta escala, así que siguen funcionando igual para quien los use. */
+  --surface-0: 0 0% 100%;   /* lienzo */
+  --surface-1: 0 0% 100%;   /* tarjeta en reposo */
+  --surface-2: 240 10% 98%; /* tarjeta destacada */
+  --surface-3: 240 5% 96%;  /* control interactivo / hover */
+
+  /* Realce interior superior: sustituye a la sombra proyectada, que sobre
+     fondo oscuro solo ensucia. Ver la utilidad .edge más abajo. */
+  --edge-highlight: 0 0% 0% / 0.04;
+  --edge-highlight-soft: 0 0% 0% / 0.02;
+
+  --background: var(--surface-0);
   --foreground: 240 10% 4%;
-  --card: 0 0% 100%;
+  --card: var(--surface-1);
   --card-foreground: 240 10% 4%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 4%;
@@ -23,17 +38,37 @@
   --accent-foreground: 240 10% 4%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 6% 90%;
-  --input: 240 6% 90%;
+  /* Hairline en ALFA, no gris sólido: se funde con cualquier superficie
+     de la escala en vez de pelearse con ella. */
+  --border: 0 0% 0% / 0.08;
+  --border-strong: 0 0% 0% / 0.14;
+  --input: var(--border);
   --ring: 243 75% 59%;
+
+  /* Acento emocional, separado del acento de cromo (--primary) a
+     propósito: la skill reserva el color para la frase del día, la racha
+     y el feedback de cierre. Teniéndolo en su propio token, gastarlo en
+     un badge secundario deja de ser el camino fácil. */
+  --accent-emotional: 243 75% 59%;
+
   --radius: 0.75rem;
 }
 
 .dark {
-  /* Fondo casi negro con un punto de temperatura (no gris puro) — look Linear/Vercel */
-  --background: 240 10% 4%;
+  /* Fondo casi negro con un punto de temperatura (no gris puro) — look Linear/Vercel.
+     Cuatro escalones de luminancia, suficientes para construir jerarquía
+     sin recurrir ni a bordes gruesos ni a sombras. */
+  --surface-0: 240 10% 4%;  /* lienzo */
+  --surface-1: 240 8% 7%;   /* tarjeta en reposo */
+  --surface-2: 240 7% 10%;  /* tarjeta destacada */
+  --surface-3: 240 6% 13%;  /* control interactivo / hover */
+
+  --edge-highlight: 0 0% 100% / 0.05;
+  --edge-highlight-soft: 0 0% 100% / 0.03;
+
+  --background: var(--surface-0);
   --foreground: 240 5% 96%;
-  --card: 240 8% 7%;
+  --card: var(--surface-1);
   --card-foreground: 240 5% 96%;
   --popover: 240 8% 7%;
   --popover-foreground: 240 5% 96%;
@@ -47,9 +82,12 @@
   --accent-foreground: 240 5% 96%;
   --destructive: 0 63% 58%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 6% 16%;
-  --input: 240 6% 16%;
+  --border: 0 0% 100% / 0.06;
+  --border-strong: 0 0% 100% / 0.10;
+  --input: var(--border);
   --ring: 243 82% 67%;
+
+  --accent-emotional: 252 85% 72%;
 }
 
 @theme inline {
@@ -70,8 +108,14 @@
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border-strong));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-surface-0: hsl(var(--surface-0));
+  --color-surface-1: hsl(var(--surface-1));
+  --color-surface-2: hsl(var(--surface-2));
+  --color-surface-3: hsl(var(--surface-3));
+  --color-accent-emotional: hsl(var(--accent-emotional));
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.25rem);
   --radius-sm: calc(var(--radius) - 0.5rem);
@@ -89,8 +133,30 @@
   }
 }
 
-/* ---------- Utilidades propias: glassmorphism ---------- */
+/* ---------- Utilidades propias ---------- */
 @layer utilities {
+  /* Realce interior de 1px arriba: así es como Linear/Vercel separan una
+     superficie del fondo en modo oscuro. Una sombra proyectada sobre un
+     fondo casi negro no se ve — solo emborrona el borde. */
+  .edge {
+    box-shadow: inset 0 1px 0 0 hsl(var(--edge-highlight));
+  }
+  /* Para superficies grandes, donde el realce completo cantaría.
+     Tiene su propio token en vez de aplicar alfa sobre --edge-highlight:
+     ese token YA lleva canal alfa, y anidar una segunda
+     (hsl(... / .05 / .6)) es CSS inválido — la regla entera se descarta
+     en silencio y el realce desaparece. */
+  .edge-soft {
+    box-shadow: inset 0 1px 0 0 hsl(var(--edge-highlight-soft));
+  }
+  /* El brillo reservado a los momentos emocionales (frase, racha, cierre
+     del día). Deliberadamente sutil: es un halo, no un neón. */
+  .glow-emotional {
+    box-shadow:
+      0 0 0 1px hsl(var(--accent-emotional) / 0.18),
+      0 0 28px -10px hsl(var(--accent-emotional) / 0.5);
+  }
+
   /* Para navbars y barras flotantes: fondo translúcido + blur del contenido de detrás */
   .glass {
     @apply bg-white/60 dark:bg-white/5 backdrop-blur-xl backdrop-saturate-150 border border-black/5 dark:border-white/10;
