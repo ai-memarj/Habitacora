@@ -10,3 +10,8 @@ data/*.db
 # cubre node_modules/.next/etc. Esta línea es un cinturón de seguridad
 # por si alguna vez se ejecuta npm install desde la raíz por error.
 node_modules/
+
+# Salida del MCP de Playwright (capturas, snapshots y logs de consola de
+# cada sesión de verificación en el navegador). Son artefactos de una
+# sesión concreta, no del proyecto.
+.playwright-mcp/

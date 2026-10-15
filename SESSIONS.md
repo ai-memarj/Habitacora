@@ -89,6 +89,20 @@ arrancar.
   porque es la que describió el usuario, pero **todo el historial de
   prueba se borró** — no hay ni un día marcado que no haya marcado él.
 
+- **Playwright MCP instalado y el arrastre verificado con él**
+  (2026-10-15, tras reiniciar la sesión). Estaba registrado con el flag
+  `--scope user` colado dentro de los argumentos del servidor y bajo el
+  proyecto `/home/shameless` en vez de a nivel de usuario, así que no se
+  cargaba desde este proyecto; re-registrado correctamente. Usa el Chrome
+  del sistema, no hace falta `playwright install`.
+  - El arrastre funciona con `dragTo` nativo, dentro de la misma semana
+    y entre semanas, persistiendo en el backend y moviendo los
+    contadores de cupo de una ventana a otra. Un intento intermedio
+    pareció fallar: era el método de prueba (ids puestos a mano sobre
+    nodos que React reemplazó después), no la app. Anotado en
+    `CLAUDE.md`.
+  - `.playwright-mcp/` añadido a `.gitignore`.
+
 **Para la próxima sesión:**
 - Empezar a usar las dos rutinas que quedaron configuradas.
 - Falta por crear la **rutina capilar**, que es el caso de uso que

@@ -249,9 +249,19 @@ tipos: se rellena lo que haga falta ahí y la rutina toma su forma.
   semana es legítimo, y los contadores de cupo lo reflejan solos porque
   cuentan a partir de la fecha del item. Desactivado en rutinas tipo
   reto (ahí la celda entera ya es un botón de tres estados).
-  **Ojo al probarlo con automatización**: los eventos de ratón
-  sintéticos NO disparan el drag & drop HTML5; hay que despachar
-  `DragEvent` con un `DataTransfer` de verdad. Con ratón real funciona.
+  **Cómo probarlo con automatización** (verificado 2026-10-15): con
+  Playwright funciona directamente — `page.locator(origen).dragTo(
+  page.locator(destino))`, que es lo que hace `browser_drag` del MCP, y
+  mueve el item de verdad (comprobado dentro de la misma semana y entre
+  semanas, con los contadores de cupo cambiando de ventana). Lo que NO
+  sirve son los eventos de ratón sintéticos de la extensión de Chrome:
+  no disparan el drag & drop HTML5, hay que despachar `DragEvent` con un
+  `DataTransfer` a mano. Y un aviso de método: si marcas elementos con
+  `id` desde la consola para localizarlos, hazlo **inmediatamente antes**
+  del arrastre — cualquier re-render de React por el medio (p. ej. una
+  revalidación de SWR tras tachar algo) puede reemplazar esos nodos y el
+  arrastre se ejecuta contra uno obsoleto sin dar error, lo que parece un
+  bug de la app y no lo es.
 - **No implementado**: renombrar/recolorear una rutina ya creada (sigue
   pendiente desde antes), en `ROADMAP.md`.
 
