@@ -90,9 +90,12 @@ arrancar.
   prueba se borró** — no hay ni un día marcado que no haya marcado él.
 
 **Para la próxima sesión:**
-- Empezar a usar las dos rutinas que quedaron configuradas, y crear la
-  capilar (pauta, ciclo de 4 días) que se diseñó pero no se llegó a
-  crear en la UI.
+- Empezar a usar las dos rutinas que quedaron configuradas.
+- Falta por crear la **rutina capilar**, que es el caso de uso que
+  originó todo el menú de Rutinas (ver `CLAUDE.md`) y el ejemplo típico
+  de *pauta*. **Preguntar al usuario qué lleva y cada cuántos días
+  rota** — no está decidido: durante las pruebas de esta sesión se usó
+  un ciclo de 4 días con productos inventados, que se borró después.
 - Pendiente de UI (backend ya listo): renombrar/recolorear una rutina.
   Ver `ROADMAP.md`.
 - Fase 2 sigue sin cerrar: faltan datos reales sostenidos (el registro
