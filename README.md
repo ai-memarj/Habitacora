@@ -130,6 +130,10 @@ documentos en la raíz del repo sostienen esa continuidad:
 - **`SESSIONS.md`** — qué se hizo en cada sesión de trabajo y qué debe
   hacer la siguiente al arrancar. Léelo primero al empezar una sesión
   nueva, sea en la nube o en local.
+- **`to_attend.md`** — deuda técnica, riesgos y mejoras detectadas de
+  pasada durante el desarrollo (no planificadas como tarea, no
+  resueltas en el momento), clasificadas por urgencia y con el
+  disparador (fase, evento o plazo) que marca cuándo atajarlas.
 
 Para las decisiones de arquitectura (el "por qué" de cómo está hecho
 cada cosa), ver `CLAUDE.md`.

@@ -17,6 +17,69 @@ arrancar.
 
 ---
 
+## Sesión — 2026-10-13 — Local (Arch Linux + Omarchy)
+
+**Hecho:**
+- Primer arranque del entorno en el Arch Linux local: `.venv` con
+  `python3.10` (Python 3.14 del sistema no tiene wheel de
+  `pydantic-core` ni compila vía PyO3 — ver `to_attend.md`), backend
+  (`uvicorn --reload --reload-dir app --port 8000`) y frontend
+  (`npm install` + `npm run dev`) arrancados y verificados manualmente
+  en el navegador por el usuario — funcionan igual que en la nube.
+- `data/habitos.db` creada por primera vez en local (con el seed de
+  categorías por defecto). Aún sin datos reales de uso diario, solo de
+  verificación.
+- Verificación estática del frontend en limpio: `npx tsc --noEmit`,
+  `npx eslint src`, y **también `next build`** (en la nube no se podía
+  probar por el bloqueo de red a `fonts.googleapis.com`; en local
+  compila sin problema, confirmando que no era un bug real de la app).
+- Creado `to_attend.md`: registro de deuda técnica/riesgos detectados
+  durante el desarrollo (clasificados Urgente/Necesario/Posponible/
+  Mejora, con el disparador — fase, evento o plazo — que marca cuándo
+  atajarlos), enlazado desde `README.md`. Sembrado con dos entradas de
+  esta sesión: la versión de Python de sistema vs. pineada, y 5
+  vulnerabilidades "high" de `npm audit` (cadena
+  `braces`→`eslint-config-next`, solo dev-dependency de lint, downgrade
+  semver-major como único fix — se pospone).
+- **Rondas de automejora de la pantalla "Hoy"** (formato "propón
+  mejoras → el usuario elige → se implementan → se resume"; desde la
+  cuarta ronda el usuario autorizó seguir autoproponiendo sin aprobar
+  ronda a ronda, excluyendo estadísticas/tendencias). Resultado: la
+  cabecera se partió en `navbar.tsx` (solo identidad + navegación +
+  versión) y `day-nav.tsx` (fecha, racha, botones de la pantalla);
+  `sleep-card.tsx` + `reflection-card.tsx` se fusionaron en
+  `today-card.tsx` (un único registro "de hoy"); `date-picker-popover.tsx`
+  sustituye el `<input type="date">` nativo; "modo interactivo" de
+  atajos de teclado (←/→/N/H/G, persistido en `localStorage`) con su
+  `shortcuts-help-popover.tsx`; editar tareas existentes además de
+  borrarlas (con confirmación en dos pasos); topes de duración en el
+  backend (una tarea ≤ 24h, el total del día ≤ 24h) y validación de
+  color hex en categorías. El detalle del "por qué" de cada decisión
+  está en `CLAUDE.md`.
+- **Importación masiva del dashboard diario desde Markdown** (petición
+  directa del usuario, para meter registros retroactivos de golpe en
+  vez de día a día por la UI — encaja con Fase 2): parser en
+  `src/lib/day-import-md.ts`, diálogo en
+  `src/components/dashboard/day-import-dialog.tsx`, botón en
+  `day-nav.tsx`. Permisivo línea a línea como el bulk de Rutinas, pero
+  **no destructivo por omisión**: una sección que un día no menciona no
+  se toca. Sin endpoints nuevos en el backend — toda la orquestación
+  vive en el cliente.
+
+**Para la próxima sesión:**
+- Backend y frontend siguen arrancables igual que siempre (ver
+  `README.md` → "Arrancar en local"), con la salvedad de usar
+  `python3.10` explícitamente al crear el venv mientras no se resuelva
+  la entrada de `to_attend.md` sobre la versión de Python.
+- Empezar a meter datos reales de uso diario en `data/habitos.db` (aún
+  no se ha hecho — de momento solo hay datos de prueba de la
+  verificación). En cuanto haya un uso diario real sostenido, marcar
+  Fase 2 como completa en `ROADMAP.md`.
+- Revisar `to_attend.md` al empezar cualquier sesión futura, no solo
+  `ROADMAP.md`/`SESSIONS.md`.
+
+---
+
 ## Sesión — 2026-10-13 — Nube
 
 **Hecho:**
